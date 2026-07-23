@@ -1,0 +1,365 @@
+// Package hap renders, validates and deploys HAProxy configuration.
+package hap
+
+import (
+	"context"
+	"fmt"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/ebdaa/haproxy-controller/internal/store"
+)
+
+// Renderer turns the database into a haproxy.cfg.
+type Renderer struct {
+	st    *store.Store
+	paths Paths
+}
+
+// Paths are the on-disk locations the generated config refers to.
+type Paths struct {
+	ConfigPath    string
+	ErrorPagesDir string
+	CertsDir      string
+	MapsDir       string
+}
+
+// NewRenderer builds a renderer bound to a store and a set of paths.
+func NewRenderer(st *store.Store, p Paths) *Renderer {
+	return &Renderer{st: st, paths: p}
+}
+
+// Result is a rendered configuration plus any non-fatal warnings the operator
+// should see in the UI.
+type Result struct {
+	Content  string
+	Warnings []string
+}
+
+// buf accumulates configuration text with helpers for HAProxy's
+// keyword-per-indented-line layout.
+type buf struct {
+	sb strings.Builder
+}
+
+func (b *buf) line(format string, args ...any) {
+	if len(args) == 0 {
+		b.sb.WriteString(format)
+	} else {
+		fmt.Fprintf(&b.sb, format, args...)
+	}
+	b.sb.WriteByte('\n')
+}
+
+// text writes a line verbatim. Use it for any value that is not a literal
+// format string, so a stray % in the data can never be interpreted.
+func (b *buf) text(s string) {
+	b.sb.WriteString(s)
+	b.sb.WriteByte('\n')
+}
+
+// kv writes an indented directive, skipping it when the value is empty.
+func (b *buf) kv(key, value string) {
+	if v := strings.TrimSpace(value); v != "" {
+		b.line("    %s %s", key, v)
+	}
+}
+
+// kvInt writes an indented directive only when the value is positive.
+func (b *buf) kvInt(key string, value int) {
+	if value > 0 {
+		b.line("    %s %d", key, value)
+	}
+}
+
+// raw appends operator-supplied text, indenting each line to section depth and
+// preserving comments. Blank lines are dropped so sections stay tidy.
+func (b *buf) raw(text string) {
+	for _, l := range strings.Split(text, "\n") {
+		l = strings.TrimRight(l, " \t\r")
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		if strings.HasPrefix(strings.TrimSpace(l), "#") {
+			b.line("    %s", strings.TrimSpace(l))
+			continue
+		}
+		b.line("    %s", strings.TrimSpace(l))
+	}
+}
+
+func (b *buf) blank() { b.sb.WriteByte('\n') }
+
+func (b *buf) String() string { return b.sb.String() }
+
+// Render builds the full configuration from current database state.
+func (r *Renderer) Render(ctx context.Context) (*Result, error) {
+	res := &Result{}
+	b := &buf{}
+
+	globals, err := r.st.GetGlobal(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load global settings: %w", err)
+	}
+	defaultsList, err := r.st.ListDefaults(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load defaults: %w", err)
+	}
+	frontends, err := r.st.ListFrontends(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load frontends: %w", err)
+	}
+	backends, err := r.st.ListBackends(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load backends: %w", err)
+	}
+	errorPages, err := r.st.ListErrorPages(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load error pages: %w", err)
+	}
+	snippets, err := r.st.ListSnippets(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load snippets: %w", err)
+	}
+	certs, err := r.st.ListCertificates(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load certificates: %w", err)
+	}
+
+	backendByID := map[int64]*store.Backend{}
+	for _, bk := range backends {
+		backendByID[bk.ID] = bk
+	}
+	certByName := map[string]*store.Certificate{}
+	for _, c := range certs {
+		certByName[c.Name] = c
+	}
+
+	// A frontend and a backend may not share a name: HAProxy treats proxy
+	// names as one namespace and would reject the file.
+	names := map[string]string{}
+	for _, f := range frontends {
+		names[f.Name] = "frontend"
+	}
+	for _, bk := range backends {
+		if kind, ok := names[bk.Name]; ok {
+			res.Warnings = append(res.Warnings,
+				fmt.Sprintf("%q is used by both a %s and a backend; HAProxy requires unique proxy names", bk.Name, kind))
+		}
+	}
+
+	r.renderHeader(b)
+	r.renderGlobal(b, globals, snippets)
+	r.renderHTTPErrors(b, errorPages)
+	r.renderSectionSnippets(b, snippets)
+
+	for _, d := range defaultsList {
+		if d.Enabled {
+			r.renderDefaults(b, d, snippets)
+		}
+	}
+
+	for _, f := range frontends {
+		if !f.Enabled {
+			continue
+		}
+		w, err := r.renderFrontend(ctx, b, f, backendByID, certByName)
+		if err != nil {
+			return nil, err
+		}
+		res.Warnings = append(res.Warnings, w...)
+	}
+
+	for _, bk := range backends {
+		if !bk.Enabled {
+			continue
+		}
+		w, err := r.renderBackend(ctx, b, bk)
+		if err != nil {
+			return nil, err
+		}
+		res.Warnings = append(res.Warnings, w...)
+	}
+
+	r.renderTrailingSnippets(b, snippets)
+
+	if len(frontends) == 0 {
+		res.Warnings = append(res.Warnings, "No frontends are defined, so HAProxy will not accept any traffic.")
+	}
+	res.Content = b.String()
+	return res, nil
+}
+
+func (r *Renderer) renderHeader(b *buf) {
+	b.text("#" + strings.Repeat("-", 74))
+	b.line("# HAProxy configuration generated by HAProxy Controller")
+	b.line("# Powered by %s - %s", store.BrandName, store.BrandURL)
+	b.line("#")
+	b.line("# Generated at %s", time.Now().UTC().Format(time.RFC3339))
+	b.line("# DO NOT EDIT BY HAND: this file is rewritten on every apply.")
+	b.line("# Use the control panel; free-form directives belong in Snippets.")
+	b.text("#" + strings.Repeat("-", 74))
+	b.blank()
+}
+
+func (r *Renderer) renderGlobal(b *buf, g *store.GlobalConfig, snippets []*store.Snippet) {
+	b.line("global")
+	for _, t := range store.SplitLines(g.LogTargets) {
+		b.kv("log", t)
+	}
+	b.kvInt("maxconn", g.Maxconn)
+	b.kvInt("nbthread", g.Nbthread)
+	b.kv("user", g.RunUser)
+	b.kv("group", g.RunGroup)
+	b.kv("chroot", g.Chroot)
+	if g.Daemon {
+		b.line("    daemon")
+	}
+	b.kv("stats socket", g.StatsSocket)
+	b.kv("stats timeout", g.StatsTimeout)
+	b.kv("hard-stop-after", g.HardStopAfter)
+
+	b.kv("ssl-default-bind-ciphers", g.SSLDefaultBindCiphers)
+	b.kv("ssl-default-bind-ciphersuites", g.SSLDefaultBindCiphersuites)
+	b.kv("ssl-default-bind-options", g.SSLDefaultBindOptions)
+	b.kv("ssl-default-server-ciphers", g.SSLDefaultServerCiphers)
+	b.kv("ssl-default-server-options", g.SSLDefaultServerOptions)
+	if g.TuneSSLDefaultDHParam > 0 {
+		b.line("    tune.ssl.default-dh-param %d", g.TuneSSLDefaultDHParam)
+	}
+	b.kv("ssl-dh-param-file", g.SSLDHParamFile)
+
+	if strings.TrimSpace(g.Extra) != "" {
+		b.raw(g.Extra)
+	}
+	for _, s := range snippets {
+		if s.Enabled && s.SectionType == "global-extra" {
+			b.line("    # snippet: %s", s.Name)
+			b.raw(s.Body)
+		}
+	}
+	b.blank()
+}
+
+// renderHTTPErrors emits one `http-errors` section per error page group, which
+// frontends, backends and defaults reference with `errorfiles <group>`.
+func (r *Renderer) renderHTTPErrors(b *buf, pages []*store.ErrorPage) {
+	groups := map[string][]*store.ErrorPage{}
+	for _, p := range pages {
+		if p.Enabled {
+			groups[p.GroupName] = append(groups[p.GroupName], p)
+		}
+	}
+	if len(groups) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(groups))
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, g := range keys {
+		list := groups[g]
+		sort.Slice(list, func(i, j int) bool { return list[i].StatusCode < list[j].StatusCode })
+		b.line("http-errors %s", g)
+		for _, p := range list {
+			b.line("    errorfile %d %s", p.StatusCode, filepath.Join(r.paths.ErrorPagesDir, p.FileName()))
+		}
+		b.blank()
+	}
+}
+
+// sectionOrder controls where each snippet kind lands in the file. Sections
+// that others reference are emitted before the proxies that use them.
+var sectionOrder = []string{
+	"crt-store", "resolvers", "userlist", "peers", "cache", "ring", "mailers",
+	"log-forward", "program", "fcgi-app", "traces",
+}
+
+func (r *Renderer) renderSectionSnippets(b *buf, snippets []*store.Snippet) {
+	for _, kind := range sectionOrder {
+		for _, s := range snippets {
+			if !s.Enabled || s.SectionType != kind {
+				continue
+			}
+			b.line("# snippet: %s", s.Name)
+			b.line("%s %s", kind, s.SectionArg)
+			b.raw(s.Body)
+			b.blank()
+		}
+	}
+}
+
+// renderTrailingSnippets emits `listen` sections and raw text last.
+func (r *Renderer) renderTrailingSnippets(b *buf, snippets []*store.Snippet) {
+	for _, s := range snippets {
+		if !s.Enabled || s.SectionType != "listen" {
+			continue
+		}
+		b.line("# snippet: %s", s.Name)
+		b.line("listen %s", s.SectionArg)
+		b.raw(s.Body)
+		b.blank()
+	}
+	for _, s := range snippets {
+		if !s.Enabled || s.SectionType != "raw" {
+			continue
+		}
+		b.line("# snippet: %s", s.Name)
+		for _, l := range strings.Split(s.Body, "\n") {
+			b.text(strings.TrimRight(l, " \t\r"))
+		}
+		b.blank()
+	}
+	// http-errors snippets let an operator hand-write a group alongside the
+	// managed ones; they are emitted last so they cannot shadow a managed name.
+	for _, s := range snippets {
+		if !s.Enabled || s.SectionType != "http-errors" {
+			continue
+		}
+		b.line("# snippet: %s", s.Name)
+		b.line("http-errors %s", s.SectionArg)
+		b.raw(s.Body)
+		b.blank()
+	}
+}
+
+func (r *Renderer) renderDefaults(b *buf, d *store.DefaultsConfig, snippets []*store.Snippet) {
+	if d.Name != "" {
+		b.line("defaults %s", d.Name)
+	} else {
+		b.line("defaults")
+	}
+	b.kv("mode", d.Mode)
+	if d.LogGlobal {
+		b.line("    log global")
+	}
+	for _, o := range store.SplitLines(d.Options) {
+		b.kv("option", o)
+	}
+	b.kvInt("retries", d.Retries)
+	b.kvInt("maxconn", d.Maxconn)
+	b.kv("timeout connect", d.TimeoutConnect)
+	b.kv("timeout client", d.TimeoutClient)
+	b.kv("timeout server", d.TimeoutServer)
+	b.kv("timeout http-request", d.TimeoutHTTPRequest)
+	b.kv("timeout http-keep-alive", d.TimeoutHTTPKeepAlive)
+	b.kv("timeout queue", d.TimeoutQueue)
+	b.kv("timeout check", d.TimeoutCheck)
+	b.kv("timeout tunnel", d.TimeoutTunnel)
+	b.kv("compression", d.Compression)
+	b.kv("errorfiles", d.ErrorFilesRef)
+	if strings.TrimSpace(d.Extra) != "" {
+		b.raw(d.Extra)
+	}
+	for _, s := range snippets {
+		if s.Enabled && s.SectionType == "defaults-extra" {
+			b.line("    # snippet: %s", s.Name)
+			b.raw(s.Body)
+		}
+	}
+	b.blank()
+}
