@@ -1,0 +1,22 @@
+# Keep the build context small and free of host state.
+.git
+.gitignore
+bin/
+dev/
+docs/
+systemd/
+.github/
+Dockerfile
+docker-compose*.yml
+.dockerignore
+README.md
+
+# Host state and secrets. The exclusions below are scoped so they never strip
+# files out of the vendored HAProxy source, which must be copied verbatim.
+/*.db
+/*.db-wal
+/*.db-shm
+/*.log
+/*.pem
+/*.key
+/*.crt

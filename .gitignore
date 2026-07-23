@@ -1,0 +1,31 @@
+# Build output
+/bin/
+/dev/
+
+# Local runtime state (never commit these)
+*.db
+*.db-wal
+*.db-shm
+controller.json
+/data/
+/etc/
+
+# TLS material and secrets
+*.pem
+*.key
+*.crt
+
+# Logs and scratch
+*.log
+*.tmp
+/tmp/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Keep the vendored HAProxy source (third_party/haproxy) tracked — the build
+# depends on it. The patterns above are scoped so they do not match inside it.
+!third_party/haproxy/**
