@@ -1,0 +1,60 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Frontends</h2><div class="subtle">Where HAProxy accepts incoming traffic.</div></div>
+    <div class="spacer"></div>
+    {{if .User.CanEdit}}<a href="/frontends/new" class="btn btn-primary btn-sm">New frontend</a>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if .Data.Rows}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Mode</th><th>Listeners</th><th>Default backend</th>
+          <th class="right">Routes</th><th>State</th><th class="right">Actions</th>
+        </tr></thead>
+        <tbody>
+        {{range .Data.Rows}}
+          <tr>
+            <td>
+              <a href="/frontends/{{.ID}}"><strong>{{.Name}}</strong></a>
+              {{if .Description}}<div class="subtle">{{.Description}}</div>{{end}}
+            </td>
+            <td><span class="badge">{{.Mode}}</span></td>
+            <td>
+              {{if .Binds}}<div class="tag-list">
+                {{range .Binds}}<span class="badge {{if .SSL}}info{{end}} mono">{{.Listen}}{{if .SSL}} ssl{{end}}</span>{{end}}
+              </div>{{else}}<span class="subtle">none</span>{{end}}
+            </td>
+            <td>{{if .BackendName}}<span class="mono">{{.BackendName}}</span>{{else}}<span class="subtle">none</span>{{end}}</td>
+            <td class="right">{{.RouteCount}}</td>
+            <td><span class="badge {{if .Enabled}}ok{{else}}{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+            <td class="right">
+              <div class="row-actions">
+                <a href="/frontends/{{.ID}}" class="btn btn-sm">Edit</a>
+                {{if $.User.CanEdit}}
+                <form method="post" action="/frontends/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Delete frontend {{.Name}} and all of its listeners and routes?">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <h3>No frontends yet</h3>
+      <p>A frontend defines the ports HAProxy listens on and how requests are routed.</p>
+      {{if .User.CanEdit}}<a href="/frontends/new" class="btn btn-primary">Create your first frontend</a>{{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{template "foot" .}}

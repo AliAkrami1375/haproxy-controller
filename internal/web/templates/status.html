@@ -1,0 +1,92 @@
+{{template "head" .}}
+
+{{if .Data.StatsError}}
+<div class="flash warning">
+  <span class="flash-icon">&#9888;</span>
+  <div class="flash-body">
+    <div class="flash-msg">Live statistics are unavailable</div>
+    <p class="subtle" style="margin:6px 0 0">
+      The controller could not read the stats socket at <span class="mono">{{.Data.Socket}}</span>.
+      {{if not .Data.Running}}The HAProxy service is not running.{{else}}Check that the socket path in Settings matches the one in the Global section.{{end}}
+    </p>
+    <pre class="flash-detail">{{.Data.StatsError}}</pre>
+  </div>
+</div>
+{{end}}
+
+{{if .Data.Info}}
+<div class="stat-grid">
+  <div class="stat"><div class="stat-label">Status</div><div class="stat-value {{if .Data.Running}}ok{{else}}bad{{end}}" style="font-size:19px">{{if .Data.Running}}Running{{else}}Stopped{{end}}</div></div>
+  <div class="stat"><div class="stat-label">Uptime</div><div class="stat-value" style="font-size:17px">{{.Data.Info.Uptime}}</div></div>
+  <div class="stat"><div class="stat-label">PID</div><div class="stat-value" style="font-size:19px">{{.Data.Info.Pid}}</div></div>
+  <div class="stat"><div class="stat-label">Connections</div><div class="stat-value">{{.Data.Info.CurrConns}}</div></div>
+  <div class="stat"><div class="stat-label">Session rate</div><div class="stat-value">{{.Data.Info.SessRate}}</div></div>
+  <div class="stat"><div class="stat-label">Tasks</div><div class="stat-value">{{.Data.Info.Tasks}}</div></div>
+</div>
+{{end}}
+
+{{range .Data.Groups}}
+<div class="card">
+  <div class="card-head">
+    <div><h2>{{.Name}}</h2></div>
+    <div class="spacer"></div>
+    {{if .Frontend}}<span class="badge {{if .Frontend.IsUp}}ok{{else}}bad{{end}}">frontend {{.Frontend.Status}}</span>{{end}}
+    {{if .Backend}}<span class="badge {{if .Backend.IsUp}}ok{{else}}bad{{end}}">backend {{.Backend.Status}}</span>{{end}}
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Status</th><th class="right">Sessions</th><th class="right">Total</th>
+            <th class="right">In</th><th class="right">Out</th>
+            <th class="right">2xx</th><th class="right">4xx</th><th class="right">5xx</th>
+            <th class="right">Errors</th><th>Check</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{with .Frontend}}
+          <tr>
+            <td><strong>FRONTEND</strong></td>
+            <td><span class="dot {{.StatusClass}}"></span> {{.Status}}</td>
+            <td class="right">{{.CurrentSes}}</td><td class="right">{{num .TotalSes}}</td>
+            <td class="right">{{bytes .BytesIn}}</td><td class="right">{{bytes .BytesOut}}</td>
+            <td class="right">{{num .HTTP2xx}}</td><td class="right">{{num .HTTP4xx}}</td><td class="right">{{num .HTTP5xx}}</td>
+            <td class="right">{{num .ErrorReq}}</td><td class="subtle">&mdash;</td>
+          </tr>
+          {{end}}
+          {{range .Servers}}
+          <tr>
+            <td style="padding-left:26px">{{.SvName}}{{if .Addr}}<div class="subtle mono">{{.Addr}}</div>{{end}}</td>
+            <td><span class="dot {{.StatusClass}}"></span> {{.Status}}</td>
+            <td class="right">{{.CurrentSes}}</td><td class="right">{{num .TotalSes}}</td>
+            <td class="right">{{bytes .BytesIn}}</td><td class="right">{{bytes .BytesOut}}</td>
+            <td class="right">{{num .HTTP2xx}}</td><td class="right">{{num .HTTP4xx}}</td><td class="right">{{num .HTTP5xx}}</td>
+            <td class="right">{{num .ErrorConn}}</td>
+            <td class="subtle">{{.CheckStat}}</td>
+          </tr>
+          {{end}}
+          {{with .Backend}}
+          <tr style="background:var(--surface-2)">
+            <td><strong>BACKEND</strong></td>
+            <td><span class="dot {{.StatusClass}}"></span> {{.Status}}</td>
+            <td class="right">{{.CurrentSes}}</td><td class="right">{{num .TotalSes}}</td>
+            <td class="right">{{bytes .BytesIn}}</td><td class="right">{{bytes .BytesOut}}</td>
+            <td class="right">{{num .HTTP2xx}}</td><td class="right">{{num .HTTP4xx}}</td><td class="right">{{num .HTTP5xx}}</td>
+            <td class="right">{{num .ErrorResp}}</td><td class="subtle">&mdash;</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{{else}}
+<div class="card"><div class="empty-state">
+  <h3>No live statistics</h3>
+  <p>Once HAProxy is running with a stats socket, per-proxy counters appear here.</p>
+  <a href="/config" class="btn btn-primary">Review &amp; apply configuration</a>
+</div></div>
+{{end}}
+
+{{template "foot" .}}

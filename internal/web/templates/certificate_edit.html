@@ -1,0 +1,77 @@
+{{template "head" .}}
+{{$c := .Data.Certificate}}
+
+<form method="post" action="/certificates" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="id" value="{{$c.ID}}">
+
+  <div class="card">
+    <div class="card-head">
+      <div><h2>Certificate</h2><div class="subtle">Paste PEM text or upload the files. The pair is verified before it is stored.</div></div>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" value="{{$c.Name}}" required
+                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" maxlength="63">
+          <span class="hint">Written to disk as <span class="mono">&lt;name&gt;.pem</span>.</span>
+        </div>
+      </div>
+
+      {{if $c.ID}}
+      <div class="section-sep">
+        <h3>Details</h3>
+        <dl class="kv" style="margin-top:11px">
+          <dt>Domains</dt><dd class="mono">{{$c.Domains}}</dd>
+          <dt>Subject</dt><dd class="mono">{{$c.Subject}}</dd>
+          <dt>Issuer</dt><dd class="mono">{{$c.Issuer}}</dd>
+          <dt>Serial</dt><dd class="mono">{{$c.Serial}}</dd>
+          <dt>SHA-256</dt><dd class="mono" style="word-break:break-all">{{$c.Fingerprint}}</dd>
+          <dt>Valid from</dt><dd>{{$c.NotBefore}}</dd>
+          <dt>Valid until</dt><dd>{{$c.NotAfter}}
+            {{if $c.IsExpired}}<span class="badge bad">expired</span>
+            {{else}}<span class="badge {{if $c.IsExpiringSoon}}warn{{else}}ok{{end}}">{{$c.DaysRemaining}} days left</span>{{end}}</dd>
+        </dl>
+      </div>
+      {{end}}
+
+      <div class="section-sep">
+        <h3>Certificate (PEM)</h3>
+        <div class="field" style="margin-top:11px">
+          <textarea id="cert_pem" name="cert_pem" rows="7"
+                    placeholder="-----BEGIN CERTIFICATE-----">{{$c.CertPEM}}</textarea>
+          <input type="file" name="cert_file" accept=".pem,.crt,.cer,text/plain" style="margin-top:8px">
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Private key (PEM)</h3>
+        <div class="field" style="margin-top:11px">
+          <textarea id="key_pem" name="key_pem" rows="6"
+                    placeholder="{{if $c.ID}}Leave empty to keep the stored key{{else}}-----BEGIN PRIVATE KEY-----{{end}}"></textarea>
+          <input type="file" name="key_file" accept=".pem,.key,text/plain" style="margin-top:8px">
+          <span class="hint">The key is never shown again after it is saved. Leave this empty when editing to keep the existing key.</span>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Intermediate chain (optional)</h3>
+        <div class="field" style="margin-top:11px">
+          <textarea id="chain_pem" name="chain_pem" rows="6"
+                    placeholder="-----BEGIN CERTIFICATE-----">{{$c.ChainPEM}}</textarea>
+          <input type="file" name="chain_file" accept=".pem,.crt,text/plain" style="margin-top:8px">
+          <span class="hint">Appended after the leaf certificate in the deployed bundle.</span>
+        </div>
+      </div>
+    </div>
+    {{if .User.CanEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save certificate</button>
+      <a href="/certificates" class="btn">Cancel</a>
+    </div>
+    {{end}}
+  </div>
+</form>
+
+{{template "foot" .}}

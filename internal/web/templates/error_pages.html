@@ -1,0 +1,62 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Error pages</h2>
+      <div class="subtle">Each group becomes an <span class="mono">http-errors</span> section. Files are written to <span class="mono">{{.Data.ErrorPagesDir}}</span>.</div></div>
+    <div class="spacer"></div>
+    {{if .User.CanEdit}}<a href="/error-pages/new" class="btn btn-primary btn-sm">New error page</a>{{end}}
+  </div>
+  <div class="card-body">
+    <p class="subtle" style="margin:0">
+      Attach a group to a frontend, backend or the defaults section to serve these pages instead of HAProxy's built-in responses.
+    </p>
+  </div>
+</div>
+
+{{range .Data.Groups}}
+<div class="card">
+  <div class="card-head">
+    <div><h2>{{.Name}}</h2><div class="subtle mono">errorfiles {{.Name}}</div></div>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th>Name</th><th>Content type</th><th>File</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range .Pages}}
+          <tr>
+            <td><strong>{{.StatusCode}}</strong> <span class="subtle">{{statusText .StatusCode}}</span></td>
+            <td><a href="/error-pages/{{.ID}}">{{.Name}}</a></td>
+            <td class="mono subtle">{{.ContentType}}</td>
+            <td class="mono subtle">{{.FileName}}</td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+            <td class="right">
+              <div class="row-actions">
+                <a href="/error-pages/{{.ID}}/preview" target="_blank" rel="noopener" class="btn btn-sm">Preview</a>
+                <a href="/error-pages/{{.ID}}" class="btn btn-sm">Edit</a>
+                {{if $.User.CanEdit}}
+                <form method="post" action="/error-pages/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Delete error page {{.Name}}?">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{{else}}
+<div class="card"><div class="empty-state">
+  <h3>No error pages</h3>
+  <p>HAProxy will serve its plain built-in responses.</p>
+  {{if .User.CanEdit}}<a href="/error-pages/new" class="btn btn-primary">Create an error page</a>{{end}}
+</div></div>
+{{end}}
+
+{{template "foot" .}}

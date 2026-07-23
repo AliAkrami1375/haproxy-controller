@@ -1,0 +1,89 @@
+{{template "head" .}}
+{{$d := .Data.Domain}}
+
+<form method="post" action="/domains">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="id" value="{{$d.ID}}">
+
+  <div class="card">
+    <div class="card-head"><div><h2>Domain route</h2><div class="subtle">Match a hostname and decide where it goes.</div></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="hostname">Hostname</label>
+          <input type="text" id="hostname" name="hostname" value="{{$d.Hostname}}" required placeholder="app.example.com">
+          <span class="hint">Matched against the request Host header, lowercased and without the port.</span>
+        </div>
+        <div class="field">
+          <label for="match_type">Match type</label>
+          <select id="match_type" name="match_type">
+            <option value="exact" {{selected $d.MatchType "exact"}}>exact &mdash; this hostname only</option>
+            <option value="subdomain" {{selected $d.MatchType "subdomain"}}>subdomain &mdash; the host and any subdomain</option>
+            <option value="wildcard" {{selected $d.MatchType "wildcard"}}>wildcard &mdash; subdomains only</option>
+            <option value="regex" {{selected $d.MatchType "regex"}}>regex &mdash; treat the value as a regular expression</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="frontend_id">Frontend</label>
+          <select id="frontend_id" name="frontend_id" required>
+            <option value="">Choose a frontend&hellip;</option>
+            {{range .Data.Frontends}}<option value="{{.ID}}" {{selected $d.FrontendID .ID}}>{{.Name}} ({{.Mode}})</option>{{end}}
+          </select>
+          <span class="hint">The frontend where this traffic arrives.</span>
+        </div>
+        <div class="field">
+          <label for="path_prefix">Path prefix</label>
+          <input type="text" id="path_prefix" name="path_prefix" value="{{$d.PathPrefix}}" placeholder="/api">
+          <span class="hint">Optional. Narrows the match to URLs starting with this path.</span>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Destination</h3>
+        <div class="form-grid" style="margin-top:11px">
+          <div class="field">
+            <label for="backend_id">Backend</label>
+            <select id="backend_id" name="backend_id">
+              <option value="">None &mdash; use a redirect instead</option>
+              {{range .Data.Backends}}<option value="{{.ID}}" {{selected (deref $d.BackendID) .ID}}>{{.Name}}</option>{{end}}
+            </select>
+          </div>
+          <div class="field">
+            <label for="redirect_to">Redirect to</label>
+            <input type="text" id="redirect_to" name="redirect_to" value="{{$d.RedirectTo}}" placeholder="https://www.example.com">
+            <span class="hint">Set either a backend or a redirect target.</span>
+          </div>
+          <div class="field">
+            <label for="redirect_code">Redirect status</label>
+            <select id="redirect_code" name="redirect_code">
+              <option value="301" {{selected $d.RedirectCode 301}}>301 Moved Permanently</option>
+              <option value="302" {{selected $d.RedirectCode 302}}>302 Found</option>
+              <option value="303" {{selected $d.RedirectCode 303}}>303 See Other</option>
+              <option value="307" {{selected $d.RedirectCode 307}}>307 Temporary Redirect</option>
+              <option value="308" {{selected $d.RedirectCode 308}}>308 Permanent Redirect</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="order_index">Order</label>
+            <input type="number" id="order_index" name="order_index" value="{{$d.OrderIndex}}">
+            <span class="hint">Lower values are matched first.</span>
+          </div>
+        </div>
+        <div class="check-grid" style="margin-top:15px">
+          <div class="check"><input type="checkbox" id="enabled" name="enabled" value="1" {{checked $d.Enabled}}>
+            <label for="enabled">Enabled</label></div>
+          <div class="check"><input type="checkbox" id="force_https" name="force_https" value="1" {{checked $d.ForceHTTPS}}>
+            <label for="force_https">Force HTTPS<span class="hint">Redirects plain HTTP requests for this hostname.</span></label></div>
+        </div>
+      </div>
+    </div>
+    {{if .User.CanEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save domain</button>
+      <a href="/domains" class="btn">Cancel</a>
+    </div>
+    {{end}}
+  </div>
+</form>
+
+{{template "foot" .}}

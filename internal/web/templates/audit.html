@@ -1,0 +1,47 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Audit log</h2><div class="subtle">{{.Data.Total}} recorded events.</div></div>
+    <div class="spacer"></div>
+    <form method="get" action="/audit" class="btn-row">
+      <input type="search" name="q" value="{{.Data.Filter}}" placeholder="Filter by action, user or detail" style="width:280px">
+      <button type="submit" class="btn btn-sm">Filter</button>
+      {{if .Data.Filter}}<a href="/audit" class="btn btn-sm">Clear</a>{{end}}
+    </form>
+  </div>
+  <div class="card-body tight">
+    {{if .Data.Entries}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>When</th><th>User</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr></thead>
+        <tbody>
+        {{range .Data.Entries}}
+          <tr>
+            <td class="nowrap subtle">{{date .CreatedAt}}</td>
+            <td>{{.Username}}</td>
+            <td class="mono">{{.Action}}</td>
+            <td class="subtle">{{if .Entity}}{{.Entity}}{{if .EntityID}} #{{.EntityID}}{{end}}{{else}}&mdash;{{end}}</td>
+            <td class="subtle" style="max-width:340px;word-break:break-word">{{.Detail}}</td>
+            <td class="mono subtle">{{.IP}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="table-empty">No entries match.</div>
+    {{end}}
+  </div>
+  {{if or .Data.HasPrev .Data.HasNext}}
+  <div class="card-foot">
+    {{if .Data.HasPrev}}<a href="/audit?page={{.Data.PrevPage}}&q={{.Data.Filter}}" class="btn btn-sm">Previous</a>{{end}}
+    <div style="flex:1"></div>
+    <span class="subtle">Page {{.Data.Page}}</span>
+    <div style="flex:1"></div>
+    {{if .Data.HasNext}}<a href="/audit?page={{.Data.NextPage}}&q={{.Data.Filter}}" class="btn btn-sm">Next</a>{{end}}
+  </div>
+  {{end}}
+</div>
+
+{{template "foot" .}}

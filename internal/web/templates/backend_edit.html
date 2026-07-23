@@ -1,0 +1,287 @@
+{{template "head" .}}
+{{$b := .Data.Backend}}
+{{$csrf := .CSRFToken}}
+{{$canEdit := .User.CanEdit}}
+
+<form method="post" action="/backends">
+  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+  <input type="hidden" name="id" value="{{$b.ID}}">
+
+  <div class="card">
+    <div class="card-head"><div><h2>Backend</h2><div class="subtle">Identity and load balancing.</div></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" value="{{$b.Name}}" required
+                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" maxlength="63">
+          <span class="hint">Referenced by <span class="mono">use_backend</span> and <span class="mono">default_backend</span>.</span>
+        </div>
+        <div class="field">
+          <label for="mode">Mode</label>
+          <select id="mode" name="mode">
+            <option value="http" {{selected $b.Mode "http"}}>http</option>
+            <option value="tcp" {{selected $b.Mode "tcp"}}>tcp</option>
+          </select>
+          <span class="hint">Must match the frontends that route to it.</span>
+        </div>
+        <div class="field">
+          <label for="balance">Balance algorithm</label>
+          <select id="balance" name="balance">
+            {{range .Data.BalanceAlgorithms}}<option value="{{.}}" {{selected $b.Balance .}}>{{.}}</option>{{end}}
+          </select>
+        </div>
+        <div class="field">
+          <label for="balance_param">Balance parameter</label>
+          <input type="text" id="balance_param" name="balance_param" value="{{$b.BalanceParam}}" placeholder="e.g. JSESSIONID">
+          <span class="hint">Only for <span class="mono">url_param</span>, <span class="mono">hdr</span> and <span class="mono">rdp-cookie</span>.</span>
+        </div>
+        <div class="field span-2">
+          <label for="description">Description</label>
+          <input type="text" id="description" name="description" value="{{$b.Description}}" maxlength="200">
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Options</h3>
+        <div class="check-grid" style="margin-top:11px">
+          <div class="check"><input type="checkbox" id="enabled" name="enabled" value="1" {{checked $b.Enabled}}>
+            <label for="enabled">Enabled</label></div>
+          <div class="check"><input type="checkbox" id="option_forwardfor" name="option_forwardfor" value="1" {{checked $b.OptionForwardFor}}>
+            <label for="option_forwardfor">Forward client IP</label></div>
+          <div class="check"><input type="checkbox" id="option_http_close" name="option_http_close" value="1" {{checked $b.OptionHTTPClose}}>
+            <label for="option_http_close">Close server connections</label></div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Health checks</h3>
+        <div class="check" style="margin:11px 0">
+          <input type="checkbox" id="httpchk_enabled" name="httpchk_enabled" value="1"
+                 {{checked $b.HTTPChkEnabled}} data-toggle-target="#chk-opts">
+          <label for="httpchk_enabled">HTTP health check<span class="hint">Servers still need "Check" enabled individually.</span></label>
+        </div>
+        <div id="chk-opts" class="form-grid" {{if not $b.HTTPChkEnabled}}hidden{{end}}>
+          <div class="field">
+            <label for="httpchk_method">Method</label>
+            <select id="httpchk_method" name="httpchk_method">
+              <option value="GET" {{selected $b.HTTPChkMethod "GET"}}>GET</option>
+              <option value="HEAD" {{selected $b.HTTPChkMethod "HEAD"}}>HEAD</option>
+              <option value="POST" {{selected $b.HTTPChkMethod "POST"}}>POST</option>
+              <option value="OPTIONS" {{selected $b.HTTPChkMethod "OPTIONS"}}>OPTIONS</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="httpchk_uri">URI</label>
+            <input type="text" id="httpchk_uri" name="httpchk_uri" value="{{$b.HTTPChkURI}}" placeholder="/healthz">
+          </div>
+          <div class="field">
+            <label for="httpchk_version">HTTP version</label>
+            <select id="httpchk_version" name="httpchk_version">
+              <option value="HTTP/1.1" {{selected $b.HTTPChkVersion "HTTP/1.1"}}>HTTP/1.1</option>
+              <option value="HTTP/1.0" {{selected $b.HTTPChkVersion "HTTP/1.0"}}>HTTP/1.0</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="httpchk_host">Host header</label>
+            <input type="text" id="httpchk_host" name="httpchk_host" value="{{$b.HTTPChkHost}}" placeholder="example.com">
+            <span class="hint">Required by most servers for HTTP/1.1 checks.</span>
+          </div>
+          <div class="field span-2">
+            <label for="check_expect">Expect</label>
+            <input type="text" id="check_expect" name="check_expect" value="{{$b.CheckExpect}}" placeholder="status 200">
+            <span class="hint">Renders <span class="mono">http-check expect &lt;value&gt;</span>, e.g. <span class="mono">status 200</span> or <span class="mono">rstatus ^2</span>.</span>
+          </div>
+        </div>
+        <div class="check" style="margin-top:12px">
+          <input type="checkbox" id="tcpchk_enabled" name="tcpchk_enabled" value="1" {{checked $b.TCPChkEnabled}}>
+          <label for="tcpchk_enabled">TCP health check<span class="hint">Adds <span class="mono">option tcp-check</span>.</span></label>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Session persistence</h3>
+        <div class="form-grid" style="margin-top:11px">
+          <div class="field">
+            <label for="cookie_name">Cookie name</label>
+            <input type="text" id="cookie_name" name="cookie_name" value="{{$b.CookieName}}" placeholder="SRVID">
+            <span class="hint">Leave empty to disable cookie persistence.</span>
+          </div>
+          <div class="field">
+            <label for="cookie_options">Cookie options</label>
+            <input type="text" id="cookie_options" name="cookie_options" value="{{$b.CookieOptions}}">
+          </div>
+        </div>
+        <div class="check" style="margin-top:12px">
+          <input type="checkbox" id="stick_enabled" name="stick_enabled" value="1"
+                 {{checked $b.StickEnabled}} data-toggle-target="#stick-opts">
+          <label for="stick_enabled">Stick table persistence</label>
+        </div>
+        <div id="stick-opts" class="form-grid" style="margin-top:11px" {{if not $b.StickEnabled}}hidden{{end}}>
+          <div class="field">
+            <label for="stick_table">stick-table</label>
+            <input type="text" id="stick_table" name="stick_table" value="{{$b.StickTable}}" placeholder="type ip size 200k expire 30m">
+          </div>
+          <div class="field">
+            <label for="stick_on">stick on</label>
+            <input type="text" id="stick_on" name="stick_on" value="{{$b.StickOn}}" placeholder="src">
+          </div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Timeouts &amp; advanced</h3>
+        <div class="form-grid" style="margin-top:11px">
+          <div class="field"><label for="retries">Retries</label>
+            <input type="number" id="retries" name="retries" value="{{$b.Retries}}" min="0">
+            <span class="hint">0 inherits from defaults.</span></div>
+          <div class="field"><label for="timeout_connect">timeout connect</label>
+            <input type="text" id="timeout_connect" name="timeout_connect" value="{{$b.TimeoutConnect}}" placeholder="inherit"></div>
+          <div class="field"><label for="timeout_server">timeout server</label>
+            <input type="text" id="timeout_server" name="timeout_server" value="{{$b.TimeoutServer}}" placeholder="inherit"></div>
+          <div class="field"><label for="timeout_check">timeout check</label>
+            <input type="text" id="timeout_check" name="timeout_check" value="{{$b.TimeoutCheck}}" placeholder="inherit"></div>
+          <div class="field">
+            <label for="http_errors_ref">Error page group</label>
+            <select id="http_errors_ref" name="http_errors_ref">
+              <option value="">Inherit from defaults</option>
+              {{range .Data.ErrorGroups}}<option value="{{.}}" {{selected $b.HTTPErrorsRef .}}>{{.}}</option>{{end}}
+            </select>
+          </div>
+          <div class="field"><label for="order_index">Order</label>
+            <input type="number" id="order_index" name="order_index" value="{{$b.OrderIndex}}"></div>
+          <div class="field span-2">
+            <label for="extra">Extra directives</label>
+            <textarea id="extra" name="extra" rows="3" placeholder="http-reuse safe">{{$b.Extra}}</textarea>
+            <span class="hint">Appended verbatim inside this backend.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {{if $canEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save backend</button>
+      <a href="/backends" class="btn">Cancel</a>
+      <div style="flex:1"></div>
+      <a href="/config" class="btn btn-sm">Review &amp; apply</a>
+    </div>
+    {{end}}
+  </div>
+</form>
+
+{{if $b.ID}}
+<div class="card">
+  <div class="card-head">
+    <div><h2>Servers</h2><div class="subtle">Upstream targets in this pool.</div></div>
+    <div class="spacer"></div>
+    {{if $canEdit}}<button type="button" class="btn btn-sm btn-primary" data-reveal="#server-form">Add server</button>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if $b.Servers}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Address</th><th class="right">Weight</th><th>Check</th><th>Flags</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range $b.Servers}}
+          <tr>
+            <td class="mono"><strong>{{.Name}}</strong></td>
+            <td class="mono">{{.Address}}{{if .Port}}:{{.Port}}{{end}}</td>
+            <td class="right">{{.Weight}}</td>
+            <td class="subtle mono">{{if .CheckEnabled}}inter {{.CheckInter}} rise {{.CheckRise}} fall {{.CheckFall}}{{else}}off{{end}}</td>
+            <td>
+              <div class="tag-list">
+                {{if .SSL}}<span class="badge info">ssl</span>{{end}}
+                {{if .Backup}}<span class="badge warn">backup</span>{{end}}
+                {{if .SendProxy}}<span class="badge">{{.SendProxy}}</span>{{end}}
+              </div>
+            </td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+            <td class="right">
+              <div class="row-actions">
+                {{if $canEdit}}
+                <form method="post" action="/servers/{{.ID}}/state" class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                  <input type="hidden" name="state" value="drain">
+                  <button type="submit" class="btn btn-sm" title="Stop sending new sessions to this server (live)">Drain</button>
+                </form>
+                <form method="post" action="/servers/{{.ID}}/state" class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                  <input type="hidden" name="state" value="ready">
+                  <button type="submit" class="btn btn-sm" title="Return this server to service (live)">Ready</button>
+                </form>
+                <form method="post" action="/servers/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Remove server {{.Name}}?">
+                  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="table-empty">No servers yet. This backend will return 503 until you add one.</div>
+    {{end}}
+  </div>
+
+  {{if $canEdit}}
+  <div id="server-form" class="card-foot" style="display:block" hidden>
+    <form method="post" action="/backends/{{$b.ID}}/servers">
+      <input type="hidden" name="csrf_token" value="{{$csrf}}">
+      <input type="hidden" name="server_id" value="0">
+      <div class="form-grid">
+        <div class="field"><label for="s_name">Name</label>
+          <input type="text" id="s_name" name="name" required placeholder="web1" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*"></div>
+        <div class="field"><label for="s_address">Address</label>
+          <input type="text" id="s_address" name="address" required placeholder="10.0.0.11"></div>
+        <div class="field"><label for="s_port">Port</label>
+          <input type="number" id="s_port" name="port" min="0" max="65535" placeholder="8080"></div>
+        <div class="field"><label for="s_weight">Weight</label>
+          <input type="number" id="s_weight" name="weight" value="100" min="0" max="256"></div>
+        <div class="field"><label for="s_maxconn">Max connections</label>
+          <input type="number" id="s_maxconn" name="maxconn" value="0" min="0"></div>
+        <div class="field"><label for="s_inter">Check interval</label>
+          <input type="text" id="s_inter" name="check_inter" value="2s"></div>
+        <div class="field"><label for="s_rise">Rise</label>
+          <input type="number" id="s_rise" name="check_rise" value="2" min="1"></div>
+        <div class="field"><label for="s_fall">Fall</label>
+          <input type="number" id="s_fall" name="check_fall" value="3" min="1"></div>
+        <div class="field"><label for="s_verify">TLS verify</label>
+          <select id="s_verify" name="ssl_verify">
+            <option value="none">none</option><option value="required">required</option>
+          </select></div>
+        <div class="field"><label for="s_sni">SNI</label>
+          <input type="text" id="s_sni" name="sni" placeholder="str(backend.example.com)"></div>
+        <div class="field"><label for="s_proxy">PROXY protocol</label>
+          <select id="s_proxy" name="send_proxy">
+            <option value="">none</option><option value="send-proxy">send-proxy</option>
+            <option value="send-proxy-v2">send-proxy-v2</option>
+          </select></div>
+        <div class="field"><label for="s_cookie">Cookie value</label>
+          <input type="text" id="s_cookie" name="cookie_value" placeholder="s1">
+          <span class="hint">Only used when the backend sets a cookie name.</span></div>
+        <div class="field span-2"><label for="s_extra">Extra parameters</label>
+          <input type="text" id="s_extra" name="extra_params" placeholder="slowstart 30s"></div>
+      </div>
+      <div class="check-grid" style="margin-top:14px">
+        <div class="check"><input type="checkbox" id="s_enabled" name="enabled" value="1" checked><label for="s_enabled">Enabled</label></div>
+        <div class="check"><input type="checkbox" id="s_check" name="check_enabled" value="1" checked><label for="s_check">Health check</label></div>
+        <div class="check"><input type="checkbox" id="s_ssl" name="ssl" value="1"><label for="s_ssl">TLS to server</label></div>
+        <div class="check"><input type="checkbox" id="s_backup" name="backup" value="1"><label for="s_backup">Backup server</label></div>
+      </div>
+      <div class="btn-row" style="margin-top:15px">
+        <button type="submit" class="btn btn-primary">Add server</button>
+        <button type="button" class="btn" data-reveal="#server-form">Cancel</button>
+      </div>
+    </form>
+  </div>
+  {{end}}
+</div>
+
+{{template "acl_rules" dict "Scope" "backend" "OwnerID" $b.ID "ACLs" $b.ACLs "Rules" $b.Rules "CSRF" $csrf "CanEdit" $canEdit "Directives" .Data.Directives}}
+{{end}}
+
+{{template "foot" .}}

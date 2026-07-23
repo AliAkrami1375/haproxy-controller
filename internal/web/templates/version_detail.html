@@ -1,0 +1,44 @@
+{{template "head" .}}
+{{$v := .Data.Version}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Version #{{$v.ID}}</h2>
+      <div class="subtle">Applied by {{$v.CreatedBy}} on {{date $v.CreatedAt}}</div></div>
+    <div class="spacer"></div>
+    <span class="badge {{if eqi $v.Status "applied"}}ok{{else if eqi $v.Status "failed"}}bad{{else}}warn{{end}}">{{$v.Status}}</span>
+    {{if and .User.CanEdit (eqi $v.Status "applied")}}
+    <form method="post" action="/versions/{{$v.ID}}/rollback" class="inline-form"
+          data-confirm="Restore version #{{$v.ID}} and reload HAProxy?">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <button type="submit" class="btn btn-sm btn-primary" data-busy="Rolling back&hellip;">Roll back to this version</button>
+    </form>
+    {{end}}
+  </div>
+  <div class="card-body">
+    <dl class="kv">
+      <dt>Checksum</dt><dd class="mono" style="word-break:break-all">{{$v.Checksum}}</dd>
+      <dt>Note</dt><dd>{{if $v.Comment}}{{$v.Comment}}{{else}}&mdash;{{end}}</dd>
+    </dl>
+    {{if $v.Error}}
+    <div class="flash error" style="margin-top:15px">
+      <span class="flash-icon">&#33;</span>
+      <div class="flash-body">
+        <div class="flash-msg">This version failed</div>
+        <pre class="flash-detail">{{$v.Error}}</pre>
+      </div>
+    </div>
+    {{end}}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Configuration</h2></div>
+    <div class="spacer"></div>
+    <button type="button" class="btn btn-sm" data-copy="#vcfg">Copy</button>
+  </div>
+  <div class="card-body"><pre class="code" id="vcfg">{{$v.Content}}</pre></div>
+</div>
+
+{{template "foot" .}}

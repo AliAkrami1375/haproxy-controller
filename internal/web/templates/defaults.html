@@ -1,0 +1,118 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Defaults</h2>
+      <div class="subtle">Values inherited by every frontend and backend declared after this section.</div></div>
+  </div>
+</div>
+
+{{range .Data.Defaults}}
+{{$d := .}}
+<form method="post" action="/defaults">
+  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+  <input type="hidden" name="id" value="{{$d.ID}}">
+  <div class="card">
+    <div class="card-head">
+      <div><h2>{{if $d.Name}}defaults {{$d.Name}}{{else}}defaults{{end}}</h2></div>
+      <div class="spacer"></div>
+      <span class="badge {{if $d.Enabled}}ok{{end}}">{{if $d.Enabled}}enabled{{else}}disabled{{end}}</span>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label for="name{{$d.ID}}">Name</label>
+          <input type="text" id="name{{$d.ID}}" name="name" value="{{$d.Name}}" placeholder="(unnamed)"
+                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*"></div>
+        <div class="field"><label for="mode{{$d.ID}}">Mode</label>
+          <select id="mode{{$d.ID}}" name="mode">
+            <option value="http" {{selected $d.Mode "http"}}>http</option>
+            <option value="tcp" {{selected $d.Mode "tcp"}}>tcp</option>
+          </select></div>
+        <div class="field"><label for="retries{{$d.ID}}">Retries</label>
+          <input type="number" id="retries{{$d.ID}}" name="retries" value="{{$d.Retries}}" min="0"></div>
+        <div class="field"><label for="maxconn{{$d.ID}}">Max connections</label>
+          <input type="number" id="maxconn{{$d.ID}}" name="maxconn" value="{{$d.Maxconn}}" min="0"></div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Timeouts</h3>
+        <div class="form-grid" style="margin-top:11px">
+          <div class="field"><label for="tc{{$d.ID}}">connect</label><input type="text" id="tc{{$d.ID}}" name="timeout_connect" value="{{$d.TimeoutConnect}}"></div>
+          <div class="field"><label for="tcl{{$d.ID}}">client</label><input type="text" id="tcl{{$d.ID}}" name="timeout_client" value="{{$d.TimeoutClient}}"></div>
+          <div class="field"><label for="ts{{$d.ID}}">server</label><input type="text" id="ts{{$d.ID}}" name="timeout_server" value="{{$d.TimeoutServer}}"></div>
+          <div class="field"><label for="thr{{$d.ID}}">http-request</label><input type="text" id="thr{{$d.ID}}" name="timeout_http_request" value="{{$d.TimeoutHTTPRequest}}"></div>
+          <div class="field"><label for="thk{{$d.ID}}">http-keep-alive</label><input type="text" id="thk{{$d.ID}}" name="timeout_http_keep_alive" value="{{$d.TimeoutHTTPKeepAlive}}"></div>
+          <div class="field"><label for="tq{{$d.ID}}">queue</label><input type="text" id="tq{{$d.ID}}" name="timeout_queue" value="{{$d.TimeoutQueue}}"></div>
+          <div class="field"><label for="tch{{$d.ID}}">check</label><input type="text" id="tch{{$d.ID}}" name="timeout_check" value="{{$d.TimeoutCheck}}"></div>
+          <div class="field"><label for="ttu{{$d.ID}}">tunnel</label><input type="text" id="ttu{{$d.ID}}" name="timeout_tunnel" value="{{$d.TimeoutTunnel}}"></div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <div class="form-grid two" style="margin-top:11px">
+          <div class="field"><label for="opts{{$d.ID}}">Options</label>
+            <textarea id="opts{{$d.ID}}" name="options" rows="4">{{$d.Options}}</textarea>
+            <span class="hint">One bare option name per line, e.g. <span class="mono">httplog</span>. The <span class="mono">option</span> keyword is added for you.</span></div>
+          <div class="field"><label for="extra{{$d.ID}}">Extra directives</label>
+            <textarea id="extra{{$d.ID}}" name="extra" rows="4">{{$d.Extra}}</textarea></div>
+          <div class="field"><label for="comp{{$d.ID}}">Compression</label>
+            <input type="text" id="comp{{$d.ID}}" name="compression" value="{{$d.Compression}}" placeholder="algo gzip"></div>
+          <div class="field"><label for="ef{{$d.ID}}">Error page group</label>
+            <select id="ef{{$d.ID}}" name="error_files_ref">
+              <option value="">None</option>
+              {{range $.Data.ErrorGroups}}<option value="{{.}}" {{selected $d.ErrorFilesRef .}}>{{.}}</option>{{end}}
+            </select></div>
+          <div class="field"><label for="ord{{$d.ID}}">Order</label>
+            <input type="number" id="ord{{$d.ID}}" name="order_index" value="{{$d.OrderIndex}}"></div>
+        </div>
+        <div class="check-grid" style="margin-top:15px">
+          <div class="check"><input type="checkbox" id="en{{$d.ID}}" name="enabled" value="1" {{checked $d.Enabled}}>
+            <label for="en{{$d.ID}}">Enabled</label></div>
+          <div class="check"><input type="checkbox" id="lg{{$d.ID}}" name="log_global" value="1" {{checked $d.LogGlobal}}>
+            <label for="lg{{$d.ID}}">log global</label></div>
+        </div>
+      </div>
+    </div>
+    {{if $.User.CanEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <div style="flex:1"></div>
+    </div>
+    {{end}}
+  </div>
+</form>
+{{if $.User.CanEdit}}
+<form method="post" action="/defaults/{{$d.ID}}/delete" class="inline-form"
+      data-confirm="Delete this defaults section?" style="margin:-12px 0 18px">
+  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+  <button type="submit" class="btn btn-sm btn-danger">Delete this defaults section</button>
+</form>
+{{end}}
+{{end}}
+
+{{if .User.CanEdit}}
+<form method="post" action="/defaults">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="id" value="0">
+  <input type="hidden" name="mode" value="http">
+  <input type="hidden" name="enabled" value="1">
+  <input type="hidden" name="log_global" value="1">
+  <input type="hidden" name="retries" value="3">
+  <input type="hidden" name="timeout_connect" value="5s">
+  <input type="hidden" name="timeout_client" value="50s">
+  <input type="hidden" name="timeout_server" value="50s">
+  <input type="hidden" name="options" value="httplog&#10;dontlognull">
+  <div class="card"><div class="card-body">
+    <div class="btn-row">
+      <div class="field" style="flex:1;min-width:200px">
+        <label for="new_defaults_name">Add a named defaults section</label>
+        <input type="text" id="new_defaults_name" name="name" placeholder="tcp-defaults"
+               pattern="[A-Za-z0-9][A-Za-z0-9._\-]*">
+      </div>
+      <button type="submit" class="btn" style="margin-top:22px">Add section</button>
+    </div>
+  </div></div>
+</form>
+{{end}}
+
+{{template "foot" .}}

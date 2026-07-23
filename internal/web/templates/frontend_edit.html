@@ -1,0 +1,292 @@
+{{template "head" .}}
+{{$f := .Data.Frontend}}
+{{$csrf := .CSRFToken}}
+{{$canEdit := .User.CanEdit}}
+
+<form method="post" action="/frontends">
+  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+  <input type="hidden" name="id" value="{{$f.ID}}">
+
+  <div class="card">
+    <div class="card-head"><div><h2>Frontend</h2><div class="subtle">Identity and traffic mode.</div></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" value="{{$f.Name}}" required
+                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" maxlength="63">
+          <span class="hint">Becomes the <span class="mono">frontend</span> section name. Must be unique across frontends and backends.</span>
+        </div>
+        <div class="field">
+          <label for="mode">Mode</label>
+          <select id="mode" name="mode">
+            <option value="http" {{selected $f.Mode "http"}}>http &mdash; inspect and route HTTP</option>
+            <option value="tcp" {{selected $f.Mode "tcp"}}>tcp &mdash; pass through raw TCP</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="default_backend_id">Default backend</label>
+          <select id="default_backend_id" name="default_backend_id">
+            <option value="">None &mdash; unmatched requests fail</option>
+            {{range .Data.Backends}}
+            <option value="{{.ID}}" {{selected (deref $f.DefaultBackendID) .ID}}>{{.Name}}</option>
+            {{end}}
+          </select>
+          <span class="hint">Used when no domain route matches.</span>
+        </div>
+        <div class="field">
+          <label for="maxconn">Max connections</label>
+          <input type="number" id="maxconn" name="maxconn" value="{{$f.Maxconn}}" min="0">
+          <span class="hint">0 inherits the global limit.</span>
+        </div>
+        <div class="field span-2">
+          <label for="description">Description</label>
+          <input type="text" id="description" name="description" value="{{$f.Description}}" maxlength="200">
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Options</h3>
+        <div class="check-grid" style="margin-top:11px">
+          <div class="check"><input type="checkbox" id="enabled" name="enabled" value="1" {{checked $f.Enabled}}>
+            <label for="enabled">Enabled<span class="hint">Disabled frontends are left out of the generated file.</span></label></div>
+          <div class="check"><input type="checkbox" id="option_httplog" name="option_httplog" value="1" {{checked $f.OptionHTTPLog}}>
+            <label for="option_httplog">HTTP logging<span class="hint"><span class="mono">option httplog</span></span></label></div>
+          <div class="check"><input type="checkbox" id="option_forwardfor" name="option_forwardfor" value="1" {{checked $f.OptionForwardFor}}>
+            <label for="option_forwardfor">Forward client IP<span class="hint">Adds <span class="mono">X-Forwarded-For</span>.</span></label></div>
+          <div class="check"><input type="checkbox" id="option_http_close" name="option_http_close" value="1" {{checked $f.OptionHTTPClose}}>
+            <label for="option_http_close">Close server connections<span class="hint"><span class="mono">option http-server-close</span></span></label></div>
+          <div class="check"><input type="checkbox" id="force_https" name="force_https" value="1" {{checked $f.ForceHTTPS}}>
+            <label for="force_https">Redirect all HTTP to HTTPS<span class="hint">301 for any non-TLS request.</span></label></div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>HSTS</h3>
+        <div class="check" style="margin:11px 0">
+          <input type="checkbox" id="hsts_enabled" name="hsts_enabled" value="1" {{checked $f.HSTSEnabled}}
+                 data-toggle-target="#hsts-opts">
+          <label for="hsts_enabled">Send Strict-Transport-Security on TLS connections</label>
+        </div>
+        <div id="hsts-opts" class="form-grid" {{if not $f.HSTSEnabled}}hidden{{end}}>
+          <div class="field">
+            <label for="hsts_max_age">Max age (seconds)</label>
+            <input type="number" id="hsts_max_age" name="hsts_max_age" value="{{$f.HSTSMaxAge}}" min="0">
+          </div>
+          <div class="field">
+            <div class="check"><input type="checkbox" id="hsts_subdomains" name="hsts_subdomains" value="1" {{checked $f.HSTSSubdomains}}>
+              <label for="hsts_subdomains">includeSubDomains</label></div>
+            <div class="check"><input type="checkbox" id="hsts_preload" name="hsts_preload" value="1" {{checked $f.HSTSPreload}}>
+              <label for="hsts_preload">preload</label></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Rate limiting</h3>
+        <div class="check" style="margin:11px 0">
+          <input type="checkbox" id="rate_limit_enabled" name="rate_limit_enabled" value="1"
+                 {{checked $f.RateLimitEnabled}} data-toggle-target="#rl-opts">
+          <label for="rate_limit_enabled">Limit requests per client IP<span class="hint">Excess requests are answered with 429.</span></label>
+        </div>
+        <div id="rl-opts" class="form-grid" {{if not $f.RateLimitEnabled}}hidden{{end}}>
+          <div class="field">
+            <label for="rate_limit_rps">Max requests per period</label>
+            <input type="number" id="rate_limit_rps" name="rate_limit_rps" value="{{$f.RateLimitRPS}}" min="0">
+          </div>
+          <div class="field">
+            <label for="rate_limit_period">Period</label>
+            <input type="text" id="rate_limit_period" name="rate_limit_period" value="{{$f.RateLimitPeriod}}" placeholder="10s">
+          </div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Stats page &amp; error pages</h3>
+        <div class="check" style="margin:11px 0">
+          <input type="checkbox" id="stats_enabled" name="stats_enabled" value="1" {{checked $f.StatsEnabled}}
+                 data-toggle-target="#stats-opts">
+          <label for="stats_enabled">Expose HAProxy's built-in stats page on this frontend</label>
+        </div>
+        <div id="stats-opts" class="form-grid" {{if not $f.StatsEnabled}}hidden{{end}}>
+          <div class="field">
+            <label for="stats_uri">Stats URI</label>
+            <input type="text" id="stats_uri" name="stats_uri" value="{{$f.StatsURI}}" placeholder="/haproxy-stats">
+          </div>
+          <div class="field">
+            <label for="stats_auth">Stats credentials</label>
+            <input type="text" id="stats_auth" name="stats_auth" value="{{$f.StatsAuth}}" placeholder="user:password">
+            <span class="hint">Leave empty to publish the page without authentication (not recommended).</span>
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top:15px">
+          <div class="field">
+            <label for="http_errors_ref">Error page group</label>
+            <select id="http_errors_ref" name="http_errors_ref">
+              <option value="">Inherit from defaults</option>
+              {{range .Data.ErrorGroups}}<option value="{{.}}" {{selected $f.HTTPErrorsRef .}}>{{.}}</option>{{end}}
+            </select>
+            <span class="hint">Renders <span class="mono">errorfiles &lt;group&gt;</span>.</span>
+          </div>
+          <div class="field">
+            <label for="order_index">Order</label>
+            <input type="number" id="order_index" name="order_index" value="{{$f.OrderIndex}}">
+            <span class="hint">Controls position in the generated file.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Advanced</h3>
+        <div class="form-grid two" style="margin-top:11px">
+          <div class="field">
+            <label for="log_settings">Log targets</label>
+            <textarea id="log_settings" name="log_settings" rows="3"
+                      placeholder="127.0.0.1:514 local0">{{$f.LogSettings}}</textarea>
+            <span class="hint">One <span class="mono">log</span> target per line. Leave empty to inherit.</span>
+          </div>
+          <div class="field">
+            <label for="extra">Extra directives</label>
+            <textarea id="extra" name="extra" rows="3"
+                      placeholder="option dontlog-normal">{{$f.Extra}}</textarea>
+            <span class="hint">Appended verbatim inside this frontend. Validated before apply.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {{if $canEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save frontend</button>
+      <a href="/frontends" class="btn">Cancel</a>
+      <div style="flex:1"></div>
+      <a href="/config" class="btn btn-sm">Review &amp; apply</a>
+    </div>
+    {{end}}
+  </div>
+</form>
+
+{{if $f.ID}}
+<div class="card">
+  <div class="card-head">
+    <div><h2>Listeners</h2><div class="subtle">Addresses and ports this frontend binds.</div></div>
+    <div class="spacer"></div>
+    {{if $canEdit}}<button type="button" class="btn btn-sm btn-primary" data-reveal="#bind-form">Add listener</button>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if $f.Binds}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Address</th><th>TLS</th><th>ALPN</th><th>Extra</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range $f.Binds}}
+          <tr>
+            <td class="mono"><strong>{{.Listen}}</strong></td>
+            <td>{{if .SSL}}<span class="badge info">{{if eqi .CertSource "cert"}}{{.CertRef}}{{else}}cert directory{{end}}</span>{{else}}<span class="subtle">plain</span>{{end}}</td>
+            <td class="mono subtle">{{if .SSL}}{{.ALPN}}{{else}}&mdash;{{end}}</td>
+            <td class="mono subtle">{{if .AcceptProxy}}accept-proxy {{end}}{{if .Transparent}}transparent {{end}}{{.ExtraParams}}</td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+            <td class="right">
+              {{if $canEdit}}
+              <form method="post" action="/binds/{{.ID}}/delete" class="inline-form"
+                    data-confirm="Remove listener {{.Listen}}?">
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+              </form>
+              {{end}}
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="table-empty">No listeners yet. This frontend will not accept traffic until you add one.</div>
+    {{end}}
+  </div>
+
+  {{if $canEdit}}
+  <div id="bind-form" class="card-foot" style="display:block" hidden>
+    <form method="post" action="/frontends/{{$f.ID}}/binds">
+      <input type="hidden" name="csrf_token" value="{{$csrf}}">
+      <input type="hidden" name="bind_id" value="0">
+      <div class="form-grid">
+        <div class="field">
+          <label for="b_address">Address</label>
+          <input type="text" id="b_address" name="address" value="*" placeholder="* or 10.0.0.5">
+          <span class="hint">Use <span class="mono">*</span> for every interface.</span>
+        </div>
+        <div class="field">
+          <label for="b_port">Port</label>
+          <input type="number" id="b_port" name="port" min="1" max="65535" required placeholder="443">
+          <span class="hint">Cannot be {{.Data.ControlPort}} (this panel).</span>
+        </div>
+        <div class="field">
+          <label for="b_cert_source">TLS certificate</label>
+          <select id="b_cert_source" name="cert_source">
+            <option value="dir">Certificate directory (SNI selects automatically)</option>
+            <option value="cert">A specific managed certificate</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="b_cert_ref">Certificate name</label>
+          <select id="b_cert_ref" name="cert_ref">
+            <option value="">&mdash;</option>
+            {{range .Data.Certificates}}<option value="{{.Name}}">{{.Name}}{{if .Domains}} ({{.Domains}}){{end}}</option>{{end}}
+          </select>
+          <span class="hint">Only used when "a specific managed certificate" is selected.</span>
+        </div>
+        <div class="field">
+          <label for="b_alpn">ALPN</label>
+          <input type="text" id="b_alpn" name="alpn" value="h2,http/1.1">
+        </div>
+        <div class="field">
+          <label for="b_extra">Extra bind parameters</label>
+          <input type="text" id="b_extra" name="extra_params" placeholder="tfo defer-accept">
+        </div>
+      </div>
+      <div class="check-grid" style="margin-top:14px">
+        <div class="check"><input type="checkbox" id="b_enabled" name="enabled" value="1" checked><label for="b_enabled">Enabled</label></div>
+        <div class="check"><input type="checkbox" id="b_ssl" name="ssl" value="1"><label for="b_ssl">Enable TLS</label></div>
+        <div class="check"><input type="checkbox" id="b_proxy" name="accept_proxy" value="1"><label for="b_proxy">accept-proxy</label></div>
+        <div class="check"><input type="checkbox" id="b_transparent" name="transparent" value="1"><label for="b_transparent">transparent</label></div>
+      </div>
+      <div class="btn-row" style="margin-top:15px">
+        <button type="submit" class="btn btn-primary">Add listener</button>
+        <button type="button" class="btn" data-reveal="#bind-form">Cancel</button>
+      </div>
+    </form>
+  </div>
+  {{end}}
+</div>
+
+{{template "acl_rules" dict "Scope" "frontend" "OwnerID" $f.ID "ACLs" $f.ACLs "Rules" $f.Rules "CSRF" $csrf "CanEdit" $canEdit "Directives" .Data.Directives}}
+
+<div class="card">
+  <div class="card-head"><div><h2>Domain routes</h2><div class="subtle">Hostnames routed by this frontend.</div></div>
+    <div class="spacer"></div><a href="/domains/new" class="btn btn-sm">Add domain</a></div>
+  <div class="card-body tight">
+    {{if $f.Domains}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Hostname</th><th>Match</th><th>Path</th><th>Target</th><th>State</th></tr></thead>
+        <tbody>
+        {{range $f.Domains}}
+          <tr>
+            <td><a href="/domains/{{.ID}}" class="mono">{{.Hostname}}</a></td>
+            <td><span class="badge">{{.MatchType}}</span></td>
+            <td class="mono subtle">{{if .PathPrefix}}{{.PathPrefix}}{{else}}&mdash;{{end}}</td>
+            <td class="mono">{{if .RedirectTo}}redirect {{.RedirectCode}} &rarr; {{.RedirectTo}}{{else}}backend #{{deref .BackendID}}{{end}}</td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="table-empty">No domain routes. Requests fall through to the default backend.</div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+{{template "foot" .}}

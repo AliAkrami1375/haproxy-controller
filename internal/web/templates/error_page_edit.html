@@ -1,0 +1,71 @@
+{{template "head" .}}
+{{$p := .Data.Page}}
+
+<form method="post" action="/error-pages">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="id" value="{{$p.ID}}">
+
+  <div class="card">
+    <div class="card-head">
+      <div><h2>Error page</h2>
+        <div class="subtle">Served verbatim by HAProxy as a complete HTTP response.</div></div>
+      <div class="spacer"></div>
+      {{if $p.ID}}<a href="/error-pages/{{$p.ID}}/preview" target="_blank" rel="noopener" class="btn btn-sm">Preview</a>{{end}}
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" value="{{$p.Name}}" required
+                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" maxlength="63">
+        </div>
+        <div class="field">
+          <label for="group_name">Group</label>
+          <input type="text" id="group_name" name="group_name" value="{{$p.GroupName}}" required
+                 list="group-list" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*">
+          <datalist id="group-list">{{range .Data.Groups}}<option value="{{.}}">{{end}}</datalist>
+          <span class="hint">Pages sharing a group are served together via <span class="mono">errorfiles</span>.</span>
+        </div>
+        <div class="field">
+          <label for="status_code">Status code</label>
+          <select id="status_code" name="status_code">
+            {{range .Data.Codes}}<option value="{{.}}" {{selected $p.StatusCode .}}>{{.}} {{statusText .}}</option>{{end}}
+          </select>
+        </div>
+        <div class="field">
+          <label for="content_type">Content type</label>
+          <input type="text" id="content_type" name="content_type" value="{{$p.ContentType}}">
+        </div>
+        <div class="field span-2">
+          <label for="headers">Extra headers</label>
+          <textarea id="headers" name="headers" rows="2"
+                    placeholder="Retry-After: 30">{{$p.Headers}}</textarea>
+          <span class="hint">One <span class="mono">Name: value</span> per line. Content-Length and Content-Type are added automatically.</span>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Body</h3>
+        <div class="field" style="margin-top:11px">
+          <textarea id="body" name="body" rows="20" spellcheck="false">{{$p.Body}}</textarea>
+          <span class="hint">Keep it self-contained: this page is served when backends are unreachable, so it must not depend on external assets.</span>
+        </div>
+      </div>
+
+      <div class="check" style="margin-top:15px">
+        <input type="checkbox" id="enabled" name="enabled" value="1" {{checked $p.Enabled}}>
+        <label for="enabled">Enabled<span class="hint">Disabled pages are not written to disk or referenced.</span></label>
+      </div>
+    </div>
+    {{if .User.CanEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save error page</button>
+      <a href="/error-pages" class="btn">Cancel</a>
+      <div style="flex:1"></div>
+      <a href="/config" class="btn btn-sm">Review &amp; apply</a>
+    </div>
+    {{end}}
+  </div>
+</form>
+
+{{template "foot" .}}

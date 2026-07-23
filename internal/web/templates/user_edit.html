@@ -1,0 +1,69 @@
+{{template "head" .}}
+{{$u := .Data.Account}}
+
+<form method="post" action="/users">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="id" value="{{$u.ID}}">
+
+  <div class="card">
+    <div class="card-head"><div><h2>Account</h2>
+      <div class="subtle">{{if $u.ID}}Editing {{$u.Username}}{{else}}Create a new panel account{{end}}</div></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" value="{{$u.Username}}"
+                 {{if $u.ID}}readonly{{else}}required{{end}} minlength="3" maxlength="32"
+                 pattern="[A-Za-z0-9._\-]+" autocomplete="off">
+          {{if $u.ID}}<span class="hint">Usernames cannot be changed.</span>{{end}}
+        </div>
+        <div class="field">
+          <label for="role">Role</label>
+          <select id="role" name="role">
+            {{range .Data.Roles}}<option value="{{.}}" {{selected $u.Role .}}>{{.}}</option>{{end}}
+          </select>
+        </div>
+        <div class="field">
+          <label for="full_name">Full name</label>
+          <input type="text" id="full_name" name="full_name" value="{{$u.FullName}}" maxlength="100">
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{$u.Email}}" maxlength="200">
+        </div>
+        <div class="field span-2">
+          <label for="password">{{if $u.ID}}New password{{else}}Password{{end}}</label>
+          <input type="password" id="password" name="password" autocomplete="new-password"
+                 {{if not $u.ID}}required{{end}} minlength="10" maxlength="200">
+          <span class="hint">
+            At least 10 characters with a letter and a digit.
+            {{if $u.ID}}Leave empty to keep the current password. Changing it signs this user out everywhere.{{end}}
+          </span>
+        </div>
+      </div>
+
+      <div class="check-grid" style="margin-top:18px">
+        <div class="check"><input type="checkbox" id="is_active" name="is_active" value="1" {{checked $u.IsActive}}>
+          <label for="is_active">Active<span class="hint">Inactive accounts cannot sign in.</span></label></div>
+        <div class="check"><input type="checkbox" id="must_change_pw" name="must_change_pw" value="1" {{checked $u.MustChangePw}}>
+          <label for="must_change_pw">Require a password change at next sign-in</label></div>
+      </div>
+
+      {{if $u.ID}}
+      <div class="section-sep">
+        <dl class="kv">
+          <dt>Created</dt><dd>{{date $u.CreatedAt}}</dd>
+          <dt>Last sign-in</dt><dd>{{date $u.LastLoginAt}} {{if $u.LastLoginIP}}<span class="mono">from {{$u.LastLoginIP}}</span>{{end}}</dd>
+          <dt>Failed attempts</dt><dd>{{$u.FailedAttempts}}{{if $u.IsLocked}} <span class="badge warn">locked</span>{{end}}</dd>
+        </dl>
+      </div>
+      {{end}}
+    </div>
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">{{if $u.ID}}Save changes{{else}}Create user{{end}}</button>
+      <a href="/users" class="btn">Cancel</a>
+    </div>
+  </div>
+</form>
+
+{{template "foot" .}}

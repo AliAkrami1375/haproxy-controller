@@ -1,0 +1,64 @@
+{{template "head" .}}
+
+{{if .Data.Valid}}
+<div class="flash success">
+  <span class="flash-icon">&#10003;</span>
+  <div class="flash-body">
+    <div class="flash-msg">This configuration passes HAProxy's own validation.</div>
+    {{if .Data.CheckOutput}}<pre class="flash-detail">{{.Data.CheckOutput}}</pre>{{end}}
+  </div>
+</div>
+{{else}}
+<div class="flash error">
+  <span class="flash-icon">&#33;</span>
+  <div class="flash-body">
+    <div class="flash-msg">HAProxy rejected this configuration. Applying is blocked until it is fixed.</div>
+    <pre class="flash-detail">{{if .Data.CheckOutput}}{{.Data.CheckOutput}}{{else}}{{.Data.CheckError}}{{end}}</pre>
+  </div>
+</div>
+{{end}}
+
+{{if .Data.Warnings}}
+<div class="flash warning">
+  <span class="flash-icon">&#9888;</span>
+  <div class="flash-body">
+    <div class="flash-msg">{{len .Data.Warnings}} warning(s) worth reviewing</div>
+    <ul class="warn-list" style="margin-top:6px">
+      {{range .Data.Warnings}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+</div>
+{{end}}
+
+<div class="card">
+  <div class="card-head">
+    <div>
+      <h2>Generated configuration</h2>
+      <div class="subtle">{{.Data.LineCount}} lines &middot; will be written to <span class="mono">{{.Data.ConfigPath}}</span></div>
+    </div>
+    <div class="spacer"></div>
+    <button type="button" class="btn btn-sm" data-copy="#cfg">Copy</button>
+    <a href="/config/download" class="btn btn-sm">Download</a>
+  </div>
+  <div class="card-body">
+    <pre class="code" id="cfg">{{.Data.Content}}</pre>
+  </div>
+</div>
+
+{{if .User.CanEdit}}
+<form method="post" action="/config/apply" class="sticky-actions"
+      data-confirm="Write this configuration to disk and reload HAProxy?">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <div class="field" style="flex:1;min-width:220px">
+    <input type="text" name="comment" placeholder="Optional note for the version history" maxlength="200">
+  </div>
+  <button type="submit" class="btn btn-primary btn-lg" data-busy="Applying&hellip;"
+          {{if not .Data.Valid}}disabled title="Fix the validation errors first"{{end}}>
+    Save &amp; Apply
+  </button>
+  <button type="submit" class="btn" formaction="/config/validate" formnovalidate>Validate only</button>
+  <span class="subtle">Applying writes the file, reloads HAProxy, and rolls back automatically if the reload fails.</span>
+</form>
+{{end}}
+
+{{template "foot" .}}

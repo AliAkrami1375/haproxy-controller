@@ -1,0 +1,154 @@
+{{template "head" .}}
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-label">HAProxy service</div>
+    <div class="stat-value {{if .Data.Running}}ok{{else}}bad{{end}}">{{if .Data.Running}}Running{{else}}Stopped{{end}}</div>
+    <div class="stat-sub mono">{{.Data.StatusText}}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Frontends</div>
+    <div class="stat-value">{{.Data.FrontendCount}}</div>
+    <div class="stat-sub">{{.Data.FrontendEnabled}} enabled</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Backends</div>
+    <div class="stat-value">{{.Data.BackendCount}}</div>
+    <div class="stat-sub">{{.Data.BackendEnabled}} enabled &middot; {{.Data.ServerCount}} servers</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Domains</div>
+    <div class="stat-value">{{.Data.DomainCount}}</div>
+    <div class="stat-sub">routed hostnames</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Servers up</div>
+    <div class="stat-value {{if .Data.ServersDown}}bad{{else}}ok{{end}}">{{.Data.ServersUp}}</div>
+    <div class="stat-sub">{{.Data.ServersDown}} down</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Certificates</div>
+    <div class="stat-value">{{.Data.CertCount}}</div>
+    <div class="stat-sub">{{if .Data.ExpiringCerts}}{{len .Data.ExpiringCerts}} need attention{{else}}all healthy{{end}}</div>
+  </div>
+</div>
+
+{{if .Data.ExpiringCerts}}
+<div class="flash warning">
+  <span class="flash-icon">&#9888;</span>
+  <div class="flash-body">
+    <div class="flash-msg">Certificates need attention</div>
+    <ul class="warn-list" style="margin-top:6px">
+      {{range .Data.ExpiringCerts}}
+      <li><a href="/certificates/{{.ID}}">{{.Name}}</a> &mdash;
+        {{if .IsExpired}}expired on {{.NotAfter}}{{else}}expires in {{.DaysRemaining}} days{{end}}</li>
+      {{end}}
+    </ul>
+  </div>
+</div>
+{{end}}
+
+<div class="card">
+  <div class="card-head">
+    <div>
+      <h2>Runtime</h2>
+      <div class="subtle">Live counters read from the HAProxy stats socket.</div>
+    </div>
+    <div class="spacer"></div>
+    <a href="/status" class="btn btn-sm">Full status</a>
+  </div>
+  <div class="card-body">
+    {{if .Data.InfoError}}
+      <p class="subtle" style="margin:0">
+        HAProxy is not reachable on the stats socket. {{if not .Data.Running}}The service is not running.{{end}}
+      </p>
+      <pre class="flash-detail" style="margin-top:10px">{{.Data.InfoError}}</pre>
+    {{else if .Data.Info}}
+      <div class="stat-grid" style="margin-bottom:0" data-live-status>
+        <div class="stat"><div class="stat-label">Version</div><div class="stat-value" style="font-size:17px">{{.Data.Info.Version}}</div></div>
+        <div class="stat"><div class="stat-label">Uptime</div><div class="stat-value" style="font-size:17px">{{.Data.Info.Uptime}}</div></div>
+        <div class="stat"><div class="stat-label">Current connections</div><div class="stat-value" data-stat="CurrConns">{{.Data.Info.CurrConns}}</div></div>
+        <div class="stat"><div class="stat-label">Session rate</div><div class="stat-value" data-stat="SessRate">{{.Data.Info.SessRate}}</div><div class="stat-sub">per second</div></div>
+        <div class="stat"><div class="stat-label">Total requests</div><div class="stat-value" style="font-size:20px">{{num .Data.Info.CumReq}}</div></div>
+        <div class="stat"><div class="stat-label">Max connections</div><div class="stat-value" style="font-size:20px">{{.Data.Info.MaxConn}}</div></div>
+      </div>
+    {{end}}
+  </div>
+  <div class="card-foot">
+    <form method="post" action="/config/reload" class="inline-form"
+          data-confirm="Reload HAProxy with the configuration currently on disk?">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <button type="submit" class="btn btn-sm" {{if not .User.CanEdit}}disabled{{end}}>Reload HAProxy</button>
+    </form>
+    {{if .User.IsAdmin}}
+    <form method="post" action="/config/restart" class="inline-form"
+          data-confirm="Restart HAProxy? Existing connections will be dropped.">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <button type="submit" class="btn btn-sm btn-danger">Restart HAProxy</button>
+    </form>
+    {{end}}
+    <div class="spacer" style="flex:1"></div>
+    <span class="subtle mono">{{.Data.HAProxyVersion}}</span>
+  </div>
+</div>
+
+<div class="form-grid two">
+  <div class="card">
+    <div class="card-head">
+      <div><h2>Recent applies</h2><div class="subtle">Configuration versions.</div></div>
+      <div class="spacer"></div>
+      <a href="/versions" class="btn btn-sm">All versions</a>
+    </div>
+    <div class="card-body tight">
+      {{if .Data.Versions}}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Version</th><th>Status</th><th>By</th><th class="right">When</th></tr></thead>
+          <tbody>
+          {{range .Data.Versions}}
+            <tr>
+              <td><a href="/versions/{{.ID}}">#{{.ID}}</a></td>
+              <td><span class="badge {{if eqi .Status "applied"}}ok{{else if eqi .Status "failed"}}bad{{else}}warn{{end}}">{{.Status}}</span></td>
+              <td>{{.CreatedBy}}</td>
+              <td class="right subtle nowrap">{{ago .CreatedAt}}</td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}
+      <div class="table-empty">Nothing has been applied yet.</div>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div><h2>Recent activity</h2><div class="subtle">Latest audit entries.</div></div>
+      <div class="spacer"></div>
+      <a href="/audit" class="btn btn-sm">Audit log</a>
+    </div>
+    <div class="card-body tight">
+      {{if .Data.Recent}}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Action</th><th>User</th><th class="right">When</th></tr></thead>
+          <tbody>
+          {{range .Data.Recent}}
+            <tr>
+              <td><span class="mono">{{.Action}}</span>{{if .Detail}}<div class="subtle">{{.Detail}}</div>{{end}}</td>
+              <td>{{.Username}}</td>
+              <td class="right subtle nowrap">{{ago .CreatedAt}}</td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else}}
+      <div class="table-empty">No activity recorded yet.</div>
+      {{end}}
+    </div>
+  </div>
+</div>
+
+{{template "foot" .}}

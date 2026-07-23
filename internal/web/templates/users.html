@@ -1,0 +1,65 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Users</h2><div class="subtle">Accounts that can sign in to this panel.</div></div>
+    <div class="spacer"></div>
+    <a href="/users/new" class="btn btn-primary btn-sm">New user</a>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Last sign-in</th><th>Status</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range .Data.Users}}
+          <tr>
+            <td><a href="/users/{{.ID}}"><strong>{{.Username}}</strong></a>
+              {{if .Email}}<div class="subtle">{{.Email}}</div>{{end}}</td>
+            <td>{{if .FullName}}{{.FullName}}{{else}}<span class="subtle">&mdash;</span>{{end}}</td>
+            <td><span class="badge {{if .IsAdmin}}info{{end}}">{{.Role}}</span></td>
+            <td class="subtle nowrap">{{ago .LastLoginAt}}{{if .LastLoginIP}}<div class="mono">{{.LastLoginIP}}</div>{{end}}</td>
+            <td>
+              <div class="tag-list">
+                {{if .IsActive}}<span class="badge ok">active</span>{{else}}<span class="badge bad">disabled</span>{{end}}
+                {{if .IsLocked}}<span class="badge warn">locked</span>{{end}}
+                {{if .MustChangePw}}<span class="badge warn">must change password</span>{{end}}
+              </div>
+            </td>
+            <td class="right">
+              <div class="row-actions">
+                {{if .IsLocked}}
+                <form method="post" action="/users/{{.ID}}/unlock" class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm">Unlock</button>
+                </form>
+                {{end}}
+                <a href="/users/{{.ID}}" class="btn btn-sm">Edit</a>
+                {{if not (eqi .ID $.User.ID)}}
+                <form method="post" action="/users/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Delete user {{.Username}}? This cannot be undone.">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <h3>Roles</h3>
+    <dl class="kv" style="margin-top:10px">
+      <dt><span class="badge info">admin</span></dt><dd>Full control, including users, controller settings and restarting HAProxy.</dd>
+      <dt><span class="badge">operator</span></dt><dd>Can edit every part of the HAProxy configuration and apply it.</dd>
+      <dt><span class="badge">viewer</span></dt><dd>Read-only access to configuration, status and the audit log.</dd>
+    </dl>
+  </div>
+</div>
+
+{{template "foot" .}}

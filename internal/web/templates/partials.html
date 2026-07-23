@@ -1,0 +1,156 @@
+{{define "acl_rules"}}
+<div class="card">
+  <div class="card-head">
+    <div><h2>ACLs</h2><div class="subtle">Named conditions you can reference from rules.</div></div>
+    <div class="spacer"></div>
+    {{if .CanEdit}}<button type="button" class="btn btn-sm btn-primary" data-reveal="#acl-form">Add ACL</button>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if .ACLs}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Expression</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{$csrf := .CSRF}}{{$canEdit := .CanEdit}}
+        {{range .ACLs}}
+          <tr>
+            <td class="mono"><strong>{{.Name}}</strong></td>
+            <td class="mono">{{.Expression}}</td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}on{{else}}off{{end}}</span></td>
+            <td class="right">
+              {{if $canEdit}}
+              <form method="post" action="/acls/{{.ID}}/delete" class="inline-form" data-confirm="Delete ACL {{.Name}}?">
+                <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+              </form>
+              {{end}}
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="table-empty">No ACLs defined.</div>
+    {{end}}
+  </div>
+  {{if .CanEdit}}
+  <div id="acl-form" class="card-foot" style="display:block" hidden>
+    <form method="post" action="/acls">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="scope" value="{{.Scope}}">
+      <input type="hidden" name="owner_id" value="{{.OwnerID}}">
+      <input type="hidden" name="acl_id" value="0">
+      <div class="form-grid">
+        <div class="field">
+          <label for="acl_name">Name</label>
+          <input type="text" id="acl_name" name="name" required placeholder="is_api"
+                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*">
+        </div>
+        <div class="field span-2">
+          <label for="acl_expr">Expression</label>
+          <input type="text" id="acl_expr" name="expression" required placeholder="path_beg /api">
+          <span class="hint">Written after the ACL name, e.g. <span class="mono">src 10.0.0.0/8</span> or <span class="mono">hdr(host) -i example.com</span>.</span>
+        </div>
+      </div>
+      <div class="check" style="margin-top:12px">
+        <input type="checkbox" id="acl_enabled" name="enabled" value="1" checked><label for="acl_enabled">Enabled</label>
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <button type="submit" class="btn btn-primary">Add ACL</button>
+        <button type="button" class="btn" data-reveal="#acl-form">Cancel</button>
+      </div>
+    </form>
+  </div>
+  {{end}}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Rules</h2><div class="subtle">Evaluated top to bottom. Order matters.</div></div>
+    <div class="spacer"></div>
+    {{if .CanEdit}}<button type="button" class="btn btn-sm btn-primary" data-reveal="#rule-form">Add rule</button>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if .Rules}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:40px">#</th><th>Directive</th><th>Argument</th><th>Condition</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{$csrf := .CSRF}}{{$canEdit := .CanEdit}}
+        {{range $i, $r := .Rules}}
+          <tr>
+            <td class="subtle">{{add $i 1}}</td>
+            <td class="mono"><strong>{{$r.Directive}}</strong></td>
+            <td class="mono">{{$r.Argument}}</td>
+            <td class="mono subtle">{{if $r.Condition}}{{$r.Condition}}{{else}}&mdash;{{end}}</td>
+            <td><span class="badge {{if $r.Enabled}}ok{{end}}">{{if $r.Enabled}}on{{else}}off{{end}}</span></td>
+            <td class="right">
+              <div class="row-actions">
+                {{if $canEdit}}
+                <form method="post" action="/rules/{{$r.ID}}/move" class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                  <input type="hidden" name="direction" value="up">
+                  <button type="submit" class="btn btn-sm" title="Move up">&uarr;</button>
+                </form>
+                <form method="post" action="/rules/{{$r.ID}}/move" class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                  <input type="hidden" name="direction" value="down">
+                  <button type="submit" class="btn btn-sm" title="Move down">&darr;</button>
+                </form>
+                <form method="post" action="/rules/{{$r.ID}}/delete" class="inline-form" data-confirm="Delete this rule?">
+                  <input type="hidden" name="csrf_token" value="{{$csrf}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="table-empty">No rules defined.</div>
+    {{end}}
+  </div>
+  {{if .CanEdit}}
+  <div id="rule-form" class="card-foot" style="display:block" hidden>
+    <form method="post" action="/rules">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="scope" value="{{.Scope}}">
+      <input type="hidden" name="owner_id" value="{{.OwnerID}}">
+      <input type="hidden" name="rule_id" value="0">
+      <div class="form-grid">
+        <div class="field">
+          <label for="rule_directive">Directive</label>
+          <select id="rule_directive" name="directive" required>
+            {{range .Directives}}<option value="{{.}}">{{.}}</option>{{end}}
+          </select>
+        </div>
+        <div class="field">
+          <label for="rule_argument">Argument</label>
+          <input type="text" id="rule_argument" name="argument" placeholder="deny deny_status 403">
+        </div>
+        <div class="field">
+          <label for="rule_condition">Condition</label>
+          <input type="text" id="rule_condition" name="condition" placeholder="if is_api !allowed_src">
+          <span class="hint">Must start with <span class="mono">if</span> or <span class="mono">unless</span>. Leave empty for none.</span>
+        </div>
+        <div class="field">
+          <label for="rule_order">Order</label>
+          <input type="number" id="rule_order" name="order_index" value="100">
+        </div>
+      </div>
+      <div class="check" style="margin-top:12px">
+        <input type="checkbox" id="rule_enabled" name="enabled" value="1" checked><label for="rule_enabled">Enabled</label>
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <button type="submit" class="btn btn-primary">Add rule</button>
+        <button type="button" class="btn" data-reveal="#rule-form">Cancel</button>
+      </div>
+    </form>
+  </div>
+  {{end}}
+</div>
+{{end}}

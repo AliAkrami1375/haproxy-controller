@@ -1,0 +1,92 @@
+{{template "head" .}}
+{{$g := .Data.Global}}
+
+<form method="post" action="/global">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+  <div class="card">
+    <div class="card-head"><div><h2>Process</h2><div class="subtle">The HAProxy <span class="mono">global</span> section.</div></div></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label for="maxconn">Max connections</label>
+          <input type="number" id="maxconn" name="maxconn" value="{{$g.Maxconn}}" min="0"></div>
+        <div class="field"><label for="nbthread">Threads</label>
+          <input type="number" id="nbthread" name="nbthread" value="{{$g.Nbthread}}" min="0">
+          <span class="hint">0 lets HAProxy choose based on available CPUs.</span></div>
+        <div class="field"><label for="run_user">Run as user</label>
+          <input type="text" id="run_user" name="run_user" value="{{$g.RunUser}}"></div>
+        <div class="field"><label for="run_group">Run as group</label>
+          <input type="text" id="run_group" name="run_group" value="{{$g.RunGroup}}"></div>
+        <div class="field"><label for="chroot">chroot</label>
+          <input type="text" id="chroot" name="chroot" value="{{$g.Chroot}}" placeholder="/var/lib/haproxy"></div>
+        <div class="field"><label for="hard_stop_after">hard-stop-after</label>
+          <input type="text" id="hard_stop_after" name="hard_stop_after" value="{{$g.HardStopAfter}}" placeholder="30s">
+          <span class="hint">How long old workers may linger after a reload.</span></div>
+      </div>
+      <div class="check" style="margin-top:15px">
+        <input type="checkbox" id="daemon" name="daemon" value="1" {{checked $g.Daemon}}>
+        <label for="daemon">Run as a daemon<span class="hint">Turn this off when HAProxy is supervised in the foreground by systemd.</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h2>Logging &amp; runtime socket</h2>
+      <div class="subtle">The stats socket is how this panel reads live status and controls servers.</div></div></div>
+    <div class="card-body">
+      <div class="form-grid two">
+        <div class="field"><label for="log_targets">Log targets</label>
+          <textarea id="log_targets" name="log_targets" rows="3">{{$g.LogTargets}}</textarea>
+          <span class="hint">One per line, e.g. <span class="mono">/dev/log local0</span>.</span></div>
+        <div class="field"><label for="stats_socket">stats socket</label>
+          <textarea id="stats_socket" name="stats_socket" rows="3">{{$g.StatsSocket}}</textarea>
+          <span class="hint">Must match the socket path configured under Settings.</span></div>
+        <div class="field"><label for="stats_timeout">stats timeout</label>
+          <input type="text" id="stats_timeout" name="stats_timeout" value="{{$g.StatsTimeout}}"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h2>TLS defaults</h2>
+      <div class="subtle">Applied to every listener that does not override them.</div></div></div>
+    <div class="card-body">
+      <div class="form-grid two">
+        <div class="field span-2"><label for="ssl_default_bind_ciphers">Bind ciphers (TLS 1.2)</label>
+          <textarea id="ssl_default_bind_ciphers" name="ssl_default_bind_ciphers" rows="2">{{$g.SSLDefaultBindCiphers}}</textarea></div>
+        <div class="field span-2"><label for="ssl_default_bind_ciphersuites">Bind ciphersuites (TLS 1.3)</label>
+          <textarea id="ssl_default_bind_ciphersuites" name="ssl_default_bind_ciphersuites" rows="2">{{$g.SSLDefaultBindCiphersuites}}</textarea></div>
+        <div class="field"><label for="ssl_default_bind_options">Bind options</label>
+          <input type="text" id="ssl_default_bind_options" name="ssl_default_bind_options" value="{{$g.SSLDefaultBindOptions}}"></div>
+        <div class="field"><label for="ssl_default_server_options">Server options</label>
+          <input type="text" id="ssl_default_server_options" name="ssl_default_server_options" value="{{$g.SSLDefaultServerOptions}}"></div>
+        <div class="field"><label for="ssl_default_server_ciphers">Server ciphers</label>
+          <input type="text" id="ssl_default_server_ciphers" name="ssl_default_server_ciphers" value="{{$g.SSLDefaultServerCiphers}}"></div>
+        <div class="field"><label for="tune_ssl_default_dh_param">DH parameter size</label>
+          <input type="number" id="tune_ssl_default_dh_param" name="tune_ssl_default_dh_param" value="{{$g.TuneSSLDefaultDHParam}}"></div>
+        <div class="field"><label for="ssl_dh_param_file">DH parameter file</label>
+          <input type="text" id="ssl_dh_param_file" name="ssl_dh_param_file" value="{{$g.SSLDHParamFile}}"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h2>Extra directives</h2>
+      <div class="subtle">Appended inside <span class="mono">global</span>, verbatim.</div></div></div>
+    <div class="card-body">
+      <div class="field">
+        <textarea id="extra" name="extra" rows="6" spellcheck="false"
+                  placeholder="tune.bufsize 32768&#10;setcap cap_net_bind_service">{{$g.Extra}}</textarea>
+      </div>
+    </div>
+    {{if .User.CanEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save global settings</button>
+      <div style="flex:1"></div>
+      <a href="/config" class="btn btn-sm">Review &amp; apply</a>
+    </div>
+    {{end}}
+  </div>
+</form>
+
+{{template "foot" .}}

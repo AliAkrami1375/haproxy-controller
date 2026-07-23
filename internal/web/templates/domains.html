@@ -1,0 +1,55 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Domains</h2><div class="subtle">Hostname routing. Each entry becomes an ACL plus a routing rule on its frontend.</div></div>
+    <div class="spacer"></div>
+    {{if .User.CanEdit}}<a href="/domains/new" class="btn btn-primary btn-sm">New domain</a>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if .Data.Domains}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Hostname</th><th>Match</th><th>Path</th><th>Frontend</th><th>Target</th><th>HTTPS</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range .Data.Domains}}
+          <tr>
+            <td><a href="/domains/{{.ID}}" class="mono"><strong>{{.Hostname}}</strong></a></td>
+            <td><span class="badge">{{.MatchType}}</span></td>
+            <td class="mono subtle">{{if .PathPrefix}}{{.PathPrefix}}{{else}}&mdash;{{end}}</td>
+            <td class="mono">{{.FrontendName}}</td>
+            <td class="mono">
+              {{if .RedirectTo}}<span class="badge warn">{{.RedirectCode}}</span> {{.RedirectTo}}
+              {{else if .BackendName}}{{.BackendName}}
+              {{else}}<span class="subtle">unset</span>{{end}}
+            </td>
+            <td>{{if .ForceHTTPS}}<span class="badge ok">forced</span>{{else}}<span class="subtle">&mdash;</span>{{end}}</td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+            <td class="right">
+              <div class="row-actions">
+                <a href="/domains/{{.ID}}" class="btn btn-sm">Edit</a>
+                {{if $.User.CanEdit}}
+                <form method="post" action="/domains/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Delete the route for {{.Hostname}}?">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <h3>No domains routed yet</h3>
+      <p>Add a hostname to send its traffic to a specific backend or redirect it elsewhere.</p>
+      {{if .User.CanEdit}}<a href="/domains/new" class="btn btn-primary">Add your first domain</a>{{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{template "foot" .}}

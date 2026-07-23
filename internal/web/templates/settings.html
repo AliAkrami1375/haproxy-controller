@@ -1,0 +1,197 @@
+{{template "head" .}}
+{{$c := .Data.Config}}
+
+<div class="form-grid" style="margin-bottom:18px">
+  <div class="card" style="margin:0">
+    <div class="card-body">
+      <div class="stat-label">HAProxy binary</div>
+      {{if .Data.HAProxyError}}
+        <div class="stat-value bad" style="font-size:16px">Not usable</div>
+        <div class="stat-sub mono">{{.Data.HAProxyError}}</div>
+      {{else}}
+        <div class="stat-value ok" style="font-size:16px">Detected</div>
+        <div class="stat-sub mono">{{.Data.HAProxyVersion}}</div>
+      {{end}}
+    </div>
+  </div>
+  <div class="card" style="margin:0">
+    <div class="card-body">
+      <div class="stat-label">Process management</div>
+      <div class="stat-value" style="font-size:16px">{{if .Data.Supervised}}Supervised{{else}}Init system{{end}}</div>
+      <div class="stat-sub">{{if .Data.Supervised}}HAProxy runs as a child of the controller{{else}}Driven through the configured commands{{end}}</div>
+    </div>
+  </div>
+  <div class="card" style="margin:0">
+    <div class="card-body">
+      <div class="stat-label">Runtime socket</div>
+      {{if .Data.SocketOK}}
+        <div class="stat-value ok" style="font-size:16px">Connected</div>
+      {{else}}
+        <div class="stat-value bad" style="font-size:16px">Unreachable</div>
+      {{end}}
+      <div class="stat-sub mono">{{$c.RuntimeSocket}}</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="max-width:none;margin-bottom:18px">
+  <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <span class="brand-mark" style="width:38px;height:38px;border-radius:10px;flex:0 0 38px"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M4 5h14v9H8l-4 3.5V14H4z"/><path d="M8 9h6M8 11.5h4"/></svg></span>
+    <div style="flex:1;min-width:220px">
+      <h3 style="margin:0">AI assistant</h3>
+      <div class="subtle">Connect OpenRouter and pick a free model so operators can build configuration by chatting with a guided agent.</div>
+    </div>
+    <a href="/settings/ai" class="btn btn-primary">Configure assistant</a>
+  </div>
+</div>
+
+<form method="post" action="/settings">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+  <div class="card">
+    <div class="card-head">
+      <div><h2>Control panel</h2>
+        <div class="subtle">Where this panel listens. Saving a change rebinds it immediately.</div></div>
+    </div>
+    <div class="card-body">
+      <div class="flash warning" style="margin-bottom:16px">
+        <span class="flash-icon">&#9888;</span>
+        <div class="flash-body">
+          <div class="flash-msg">Changing the address or port moves the panel</div>
+          <p class="subtle" style="margin:6px 0 0">
+            After saving you will need to reopen the panel at the new URL. The port cannot collide with an enabled HAProxy listener.
+          </p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="listen_addr">Listen address</label>
+          <input type="text" id="listen_addr" name="listen_addr" value="{{$c.ListenAddr}}" placeholder="0.0.0.0">
+          <span class="hint">Use <span class="mono">127.0.0.1</span> to expose the panel only behind a tunnel or proxy.</span>
+        </div>
+        <div class="field">
+          <label for="listen_port">Listen port</label>
+          <input type="number" id="listen_port" name="listen_port" value="{{$c.ListenPort}}" min="1" max="65535" required>
+          <span class="hint">Default is 9000.</span>
+        </div>
+        <div class="field">
+          <label for="session_ttl_minutes">Session lifetime (minutes)</label>
+          <input type="number" id="session_ttl_minutes" name="session_ttl_minutes" value="{{$c.SessionTTLMins}}" min="5" max="20160">
+        </div>
+        <div class="field">
+          <label for="panel_title">Panel title</label>
+          <input type="text" id="panel_title" name="panel_title" value="{{.Data.PanelTitle}}" maxlength="60">
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>TLS for the control panel</h3>
+        <div class="check" style="margin:11px 0">
+          <input type="checkbox" id="tls_enabled" name="tls_enabled" value="1" {{checked $c.TLSEnabled}}
+                 data-toggle-target="#tls-opts">
+          <label for="tls_enabled">Serve the panel over HTTPS<span class="hint">Strongly recommended when the panel is reachable from outside the host.</span></label>
+        </div>
+        <div id="tls-opts" class="form-grid" {{if not $c.TLSEnabled}}hidden{{end}}>
+          <div class="field">
+            <label for="tls_cert">Certificate file</label>
+            <input type="text" id="tls_cert" name="tls_cert" value="{{$c.TLSCert}}" placeholder="/etc/haproxy-controller/panel.crt">
+          </div>
+          <div class="field">
+            <label for="tls_key">Private key file</label>
+            <input type="text" id="tls_key" name="tls_key" value="{{$c.TLSKey}}" placeholder="/etc/haproxy-controller/panel.key">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div><h2>HAProxy integration</h2>
+        <div class="subtle">Paths and commands the controller uses to manage HAProxy.</div></div>
+    </div>
+    <div class="card-body">
+      <div class="form-grid two">
+        <div class="field">
+          <label for="haproxy_bin">HAProxy binary</label>
+          <input type="text" id="haproxy_bin" name="haproxy_bin" value="{{$c.HAProxyBin}}">
+          <span class="hint">Used for validation and version detection.</span>
+        </div>
+        <div class="field">
+          <label for="config_path">Configuration file</label>
+          <input type="text" id="config_path" name="config_path" value="{{$c.ConfigPath}}">
+          <span class="hint">Rewritten on every apply.</span>
+        </div>
+        <div class="field">
+          <label for="error_pages_dir">Error pages directory</label>
+          <input type="text" id="error_pages_dir" name="error_pages_dir" value="{{$c.ErrorPagesDir}}">
+        </div>
+        <div class="field">
+          <label for="certs_dir">Certificates directory</label>
+          <input type="text" id="certs_dir" name="certs_dir" value="{{$c.CertsDir}}">
+        </div>
+        <div class="field">
+          <label for="runtime_socket">Runtime (stats) socket</label>
+          <input type="text" id="runtime_socket" name="runtime_socket" value="{{$c.RuntimeSocket}}">
+          <span class="hint">Must match the <span class="mono">stats socket</span> path in the Global section.</span>
+        </div>
+        <div class="field">
+          <label for="keep_versions">Versions to keep</label>
+          <input type="number" id="keep_versions" name="keep_versions" value="{{.Data.KeepVersions}}" min="5" max="500">
+        </div>
+        {{if .Data.Supervised}}
+        <div class="field span-2">
+          <label>Process management</label>
+          <div class="flash info" style="margin:0">
+            <span class="flash-icon">&#8505;</span>
+            <div class="flash-body">
+              <div class="flash-msg">The controller supervises HAProxy directly</div>
+              <p class="subtle" style="margin:6px 0 0">
+                HAProxy runs as a child of this process in master-worker mode, so applying a
+                configuration signals the master to reload without dropping connections.
+                There is no init system involved and no reload, restart or status command to configure.
+              </p>
+            </div>
+          </div>
+        </div>
+        {{else}}
+        <div class="field">
+          <label for="reload_command">Reload command</label>
+          <input type="text" id="reload_command" name="reload_command" value="{{$c.ReloadCommand}}">
+          <span class="hint">Run after a successful apply. A reload keeps existing connections.</span>
+        </div>
+        <div class="field">
+          <label for="restart_command">Restart command</label>
+          <input type="text" id="restart_command" name="restart_command" value="{{$c.RestartCommand}}">
+        </div>
+        <div class="field span-2">
+          <label for="status_command">Status command</label>
+          <input type="text" id="status_command" name="status_command" value="{{$c.StatusCommand}}">
+          <span class="hint">Must exit 0 when HAProxy is running. Used to verify a reload and to trigger rollback.</span>
+        </div>
+        {{end}}
+      </div>
+    </div>
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save settings</button>
+      <div style="flex:1"></div>
+      <span class="subtle mono">{{.Data.ConfigFile}}</span>
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-head"><div><h2>About</h2></div></div>
+  <div class="card-body">
+    <dl class="kv">
+      <dt>Controller data</dt><dd class="mono">{{$c.DataDir}}</dd>
+      <dt>Database</dt><dd class="mono">{{$c.DBPath}}</dd>
+      <dt>Config backups</dt><dd class="mono">{{$c.BackupDir}}</dd>
+      <dt>Controller config</dt><dd class="mono">{{.Data.ConfigFile}}</dd>
+      <dt>Process mode</dt><dd class="mono">{{.Data.ProcessMode}}</dd>
+      <dt>Powered by</dt><dd><a href="{{.Brand.URL}}" target="_blank" rel="noopener noreferrer">{{.Brand.Name}}</a></dd>
+    </dl>
+  </div>
+</div>
+
+{{template "foot" .}}

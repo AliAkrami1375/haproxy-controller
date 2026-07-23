@@ -1,0 +1,55 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>TLS certificates</h2>
+      <div class="subtle">Stored in the database and written to <span class="mono">{{.Data.CertsDir}}</span> on apply.</div></div>
+    <div class="spacer"></div>
+    {{if .User.CanEdit}}<a href="/certificates/new" class="btn btn-primary btn-sm">Add certificate</a>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if .Data.Certificates}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Domains</th><th>Issuer</th><th>Expires</th><th>Status</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range .Data.Certificates}}
+          <tr>
+            <td><a href="/certificates/{{.ID}}"><strong>{{.Name}}</strong></a>
+              <div class="subtle mono">{{.FileName}}</div></td>
+            <td class="mono">{{.Domains}}</td>
+            <td class="subtle">{{.Issuer}}</td>
+            <td class="nowrap">{{.NotAfter}}</td>
+            <td>
+              {{if .IsExpired}}<span class="badge bad">expired</span>
+              {{else if .IsExpiringSoon}}<span class="badge warn">{{.DaysRemaining}} days left</span>
+              {{else}}<span class="badge ok">valid</span>{{end}}
+            </td>
+            <td class="right">
+              <div class="row-actions">
+                <a href="/certificates/{{.ID}}" class="btn btn-sm">Edit</a>
+                {{if $.User.CanEdit}}
+                <form method="post" action="/certificates/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Delete certificate {{.Name}}? Any listener using it will fall back to the certificate directory.">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <h3>No certificates yet</h3>
+      <p>Add a certificate and private key to terminate TLS on a listener.</p>
+      {{if .User.CanEdit}}<a href="/certificates/new" class="btn btn-primary">Add a certificate</a>{{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{template "foot" .}}

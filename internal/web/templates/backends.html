@@ -1,0 +1,57 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Backends</h2><div class="subtle">Server pools that receive proxied traffic.</div></div>
+    <div class="spacer"></div>
+    {{if .User.CanEdit}}<a href="/backends/new" class="btn btn-primary btn-sm">New backend</a>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if .Data.Rows}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Mode</th><th>Balance</th><th>Servers</th><th>Health check</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range .Data.Rows}}
+          <tr>
+            <td>
+              <a href="/backends/{{.ID}}"><strong>{{.Name}}</strong></a>
+              {{if .Description}}<div class="subtle">{{.Description}}</div>{{end}}
+            </td>
+            <td><span class="badge">{{.Mode}}</span></td>
+            <td class="mono">{{.Balance}}</td>
+            <td>
+              {{if .Servers}}<div class="tag-list">
+                {{range .Servers}}<span class="badge {{if .Enabled}}{{else}}bad{{end}} mono">{{.Name}}</span>{{end}}
+              </div>{{else}}<span class="subtle">none</span>{{end}}
+            </td>
+            <td>{{if .HTTPChkEnabled}}<span class="badge info mono">{{.HTTPChkMethod}} {{.HTTPChkURI}}</span>{{else if .TCPChkEnabled}}<span class="badge info">tcp-check</span>{{else}}<span class="subtle">none</span>{{end}}</td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+            <td class="right">
+              <div class="row-actions">
+                <a href="/backends/{{.ID}}" class="btn btn-sm">Edit</a>
+                {{if $.User.CanEdit}}
+                <form method="post" action="/backends/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Delete backend {{.Name}} and all of its servers?">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <h3>No backends yet</h3>
+      <p>A backend groups the servers that will actually handle requests.</p>
+      {{if .User.CanEdit}}<a href="/backends/new" class="btn btn-primary">Create your first backend</a>{{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{template "foot" .}}

@@ -1,0 +1,81 @@
+{{template "head" .}}
+
+{{if .Data.FirstLogin}}
+<div class="flash warning">
+  <span class="flash-icon">&#9888;</span>
+  <div class="flash-body">
+    <div class="flash-msg">Choose a new password to continue</div>
+    <p class="subtle" style="margin:6px 0 0">
+      This account is still using the password it was created with. The rest of the panel unlocks once you change it.
+    </p>
+  </div>
+</div>
+{{end}}
+
+<div class="form-grid two">
+  <div class="card">
+    <div class="card-head"><div><h2>Change password</h2></div></div>
+    <form method="post" action="/profile/password">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="card-body">
+        <div class="field">
+          <label for="current_password">Current password</label>
+          <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label for="new_password">New password</label>
+          <input type="password" id="new_password" name="new_password" required minlength="10"
+                 maxlength="200" autocomplete="new-password">
+          <span class="hint">At least 10 characters, including a letter and a digit.</span>
+        </div>
+        <div class="field" style="margin-top:14px">
+          <label for="confirm_password">Confirm new password</label>
+          <input type="password" id="confirm_password" name="confirm_password" required
+                 minlength="10" maxlength="200" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="card-foot">
+        <button type="submit" class="btn btn-primary">Change password</button>
+        <span class="subtle">All your other sessions will be signed out.</span>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div><h2>Account</h2></div></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>Username</dt><dd class="mono">{{.User.Username}}</dd>
+        <dt>Full name</dt><dd>{{if .User.FullName}}{{.User.FullName}}{{else}}&mdash;{{end}}</dd>
+        <dt>Email</dt><dd>{{if .User.Email}}{{.User.Email}}{{else}}&mdash;{{end}}</dd>
+        <dt>Role</dt><dd><span class="badge {{if .User.IsAdmin}}info{{end}}">{{.User.Role}}</span></dd>
+        <dt>Member since</dt><dd>{{date .User.CreatedAt}}</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><h2>Active sessions</h2>
+    <div class="subtle">Signed-in browsers for this account.</div></div></div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>IP address</th><th>Browser</th><th>Started</th><th>Last seen</th><th>Expires</th></tr></thead>
+        <tbody>
+        {{range .Data.Sessions}}
+          <tr>
+            <td class="mono">{{.IP}}{{if eqi .ID $.Data.CurrentSession.ID}} <span class="badge ok">this session</span>{{end}}</td>
+            <td class="subtle">{{.UserAgent}}</td>
+            <td class="subtle nowrap">{{date .CreatedAt}}</td>
+            <td class="subtle nowrap">{{ago .LastSeenAt}}</td>
+            <td class="subtle nowrap">{{date .ExpiresAt}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{{template "foot" .}}

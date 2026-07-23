@@ -1,0 +1,49 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Configuration snippets</h2>
+      <div class="subtle">Anything the structured editors do not cover: extra sections, or raw directives appended to global and defaults.</div></div>
+    <div class="spacer"></div>
+    {{if .User.CanEdit}}<a href="/snippets/new" class="btn btn-primary btn-sm">New snippet</a>{{end}}
+  </div>
+  <div class="card-body tight">
+    {{if .Data.Snippets}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Section</th><th>Lines</th><th>State</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range .Data.Snippets}}
+          <tr>
+            <td><a href="/snippets/{{.ID}}"><strong>{{.Name}}</strong></a></td>
+            <td><span class="badge info mono">{{.SectionType}}{{if .SectionArg}} {{.SectionArg}}{{end}}</span></td>
+            <td class="subtle">{{len .Body}} chars</td>
+            <td><span class="badge {{if .Enabled}}ok{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</span></td>
+            <td class="right">
+              <div class="row-actions">
+                <a href="/snippets/{{.ID}}" class="btn btn-sm">Edit</a>
+                {{if $.User.CanEdit}}
+                <form method="post" action="/snippets/{{.ID}}/delete" class="inline-form"
+                      data-confirm="Delete snippet {{.Name}}?">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <h3>No snippets</h3>
+      <p>Use snippets for resolvers, userlists, peers, caches, standalone listen sections, or any directive not exposed in the editors.</p>
+      {{if .User.CanEdit}}<a href="/snippets/new" class="btn btn-primary">Create a snippet</a>{{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{template "foot" .}}

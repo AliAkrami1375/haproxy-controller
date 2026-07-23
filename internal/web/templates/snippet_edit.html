@@ -1,0 +1,64 @@
+{{template "head" .}}
+{{$s := .Data.Snippet}}
+
+<form method="post" action="/snippets">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+  <input type="hidden" name="id" value="{{$s.ID}}">
+
+  <div class="card">
+    <div class="card-head">
+      <div><h2>Snippet</h2><div class="subtle">Written into the generated configuration and validated before any apply.</div></div>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" value="{{$s.Name}}" required
+                 pattern="[A-Za-z0-9][A-Za-z0-9._\-]*" maxlength="63">
+          <span class="hint">Used as a comment marker in the output.</span>
+        </div>
+        <div class="field">
+          <label for="section_type">Section type</label>
+          <select id="section_type" name="section_type">
+            {{range .Data.SectionTypes}}<option value="{{.}}" {{selected $s.SectionType .}}>{{.}}</option>{{end}}
+          </select>
+          <span class="hint"><span class="mono">global-extra</span> and <span class="mono">defaults-extra</span> append lines inside those sections; <span class="mono">raw</span> is appended at the end of the file.</span>
+        </div>
+        <div class="field">
+          <label for="section_arg">Section name</label>
+          <input type="text" id="section_arg" name="section_arg" value="{{$s.SectionArg}}"
+                 placeholder="e.g. mydns" pattern="[A-Za-z0-9][A-Za-z0-9._\-]*">
+          <span class="hint">Required for named sections such as <span class="mono">resolvers</span> or <span class="mono">listen</span>.</span>
+        </div>
+        <div class="field">
+          <label for="order_index">Order</label>
+          <input type="number" id="order_index" name="order_index" value="{{$s.OrderIndex}}">
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Body</h3>
+        <div class="field" style="margin-top:11px">
+          <textarea id="body" name="body" rows="16" spellcheck="false" required
+                    placeholder="nameserver dns1 10.0.0.1:53&#10;resolve_retries 3">{{$s.Body}}</textarea>
+          <span class="hint">Do not repeat the section header line; it is generated from the fields above. Indentation is applied automatically.</span>
+        </div>
+      </div>
+
+      <div class="check" style="margin-top:15px">
+        <input type="checkbox" id="enabled" name="enabled" value="1" {{checked $s.Enabled}}>
+        <label for="enabled">Enabled</label>
+      </div>
+    </div>
+    {{if .User.CanEdit}}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save snippet</button>
+      <a href="/snippets" class="btn">Cancel</a>
+      <div style="flex:1"></div>
+      <a href="/config" class="btn btn-sm">Review &amp; apply</a>
+    </div>
+    {{end}}
+  </div>
+</form>
+
+{{template "foot" .}}

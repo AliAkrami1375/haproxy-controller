@@ -1,0 +1,49 @@
+{{template "head" .}}
+
+<div class="card">
+  <div class="card-head">
+    <div><h2>Version history</h2>
+      <div class="subtle">Every apply is recorded. Roll back to any applied version.</div></div>
+  </div>
+  <div class="card-body tight">
+    {{if .Data.Versions}}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Version</th><th>Status</th><th>Note</th><th>By</th><th>When</th><th class="right">Actions</th></tr></thead>
+        <tbody>
+        {{range .Data.Versions}}
+          <tr>
+            <td><a href="/versions/{{.ID}}"><strong>#{{.ID}}</strong></a>
+              <div class="subtle mono">{{short .Checksum}}</div></td>
+            <td><span class="badge {{if eqi .Status "applied"}}ok{{else if eqi .Status "failed"}}bad{{else}}warn{{end}}">{{.Status}}</span></td>
+            <td>{{if .Comment}}{{.Comment}}{{else}}<span class="subtle">&mdash;</span>{{end}}</td>
+            <td>{{.CreatedBy}}</td>
+            <td class="nowrap subtle">{{date .CreatedAt}}</td>
+            <td class="right">
+              <div class="row-actions">
+                <a href="/versions/{{.ID}}" class="btn btn-sm">View</a>
+                {{if and $.User.CanEdit (eqi .Status "applied")}}
+                <form method="post" action="/versions/{{.ID}}/rollback" class="inline-form"
+                      data-confirm="Restore version #{{.ID}} and reload HAProxy?">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <button type="submit" class="btn btn-sm" data-busy="Rolling back&hellip;">Roll back</button>
+                </form>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <h3>No versions yet</h3>
+      <p>Apply a configuration and it will appear here.</p>
+      <a href="/config" class="btn btn-primary">Review &amp; apply</a>
+    </div>
+    {{end}}
+  </div>
+</div>
+
+{{template "foot" .}}
