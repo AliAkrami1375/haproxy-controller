@@ -1,0 +1,94 @@
+{{template "head" .}}
+
+<div class="card" style="max-width:820px">
+  <div class="card-head">
+    <div>
+      <h2>Assistant</h2>
+      <div class="subtle">Connect an OpenRouter account so the assistant can build and change your HAProxy configuration through chat.</div>
+    </div>
+  </div>
+  <form method="post" action="/settings/ai" id="ai-form">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <div class="card-body">
+
+      <div class="check" style="margin-bottom:18px">
+        <input type="checkbox" id="enabled" name="enabled" value="1" {{checked .Data.Enabled}}>
+        <label for="enabled">Enable the assistant<span class="hint">When enabled, operators and administrators can use the Assistant page.</span></label>
+      </div>
+
+      <div class="section-sep">
+        <h3>OpenRouter API key</h3>
+        <div class="field" style="margin-top:11px">
+          <label for="api_key">API key</label>
+          <input type="password" id="api_key" name="api_key" autocomplete="off"
+                 placeholder="{{if .Data.HasKey}}A key is set ({{.Data.KeyHint}}) — leave empty to keep it{{else}}sk-or-v1-…{{end}}">
+          <span class="hint">
+            Create a free key at <span class="mono">openrouter.ai/keys</span>. It is stored encrypted with the controller's session secret.
+            {{if .Data.HasKey}}Type <span class="mono">clear</span> to remove the stored key.{{end}}
+          </span>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Model</h3>
+        <div class="form-grid" style="margin-top:11px">
+          <div class="field span-2">
+            <label for="model">Model</label>
+            <input type="text" id="model" name="model" value="{{.Data.Model}}" list="model-list"
+                   placeholder="{{.Data.DefaultModel}}">
+            <datalist id="model-list"></datalist>
+            <span class="hint">
+              Use a <strong>free, tool-capable</strong> model so the assistant can call the configuration tools at no cost.
+              Click "Load free models" to fetch the current list from OpenRouter.
+            </span>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button type="button" class="btn btn-sm" id="load-models">Load free models</button>
+          <span class="subtle" id="models-status"></span>
+        </div>
+        <div id="models-panel" hidden style="margin-top:12px">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Model</th><th>Context</th><th class="right"></th></tr></thead>
+              <tbody id="models-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-sep">
+        <h3>Advanced</h3>
+        <div class="field" style="margin-top:11px">
+          <label for="base_url">API base URL</label>
+          <input type="text" id="base_url" name="base_url" value="{{.Data.BaseURL}}">
+          <span class="hint">Only change this to use an OpenRouter-compatible proxy.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary">Save assistant settings</button>
+      <button type="button" class="btn" id="test-btn">Test connection</button>
+      <span class="subtle" id="test-status"></span>
+      <div style="flex:1"></div>
+      <a href="/assistant" class="btn btn-sm">Open the assistant</a>
+    </div>
+  </form>
+</div>
+
+<div class="card" style="max-width:820px">
+  <div class="card-body">
+    <h3>How the assistant works</h3>
+    <p class="subtle" style="margin:8px 0 0;line-height:1.7">
+      Describe what you want in plain language. The assistant reads your current configuration, then builds the change
+      step by step — creating backends, servers, frontends, listeners and routes in the right order — and validates the
+      result with HAProxy's own checker, repairing anything that fails. It only ever <strong>stages</strong> changes;
+      nothing goes live until you open Review &amp; apply and press Save &amp; Apply, which itself validates and rolls back
+      on failure. Every change the assistant makes is recorded in the audit log under your account.
+    </p>
+  </div>
+</div>
+
+<script src="/static/ai-settings.js"></script>
+{{template "foot" .}}

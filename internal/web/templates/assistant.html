@@ -1,0 +1,145 @@
+{{template "head" .}}
+
+{{if not .Data.Ready}}
+<div class="card assistant-setup">
+  <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h14v9H8l-4 3.5V14H4z"/><path d="M8 9h6M8 11.5h4"/></svg></span>
+  <h2>The assistant is not configured yet</h2>
+  {{if .User.IsAdmin}}
+  <p>Connect an OpenRouter API key and choose a free model, and the assistant can build and change your HAProxy configuration for you through a guided, self-validating workflow.</p>
+  <a href="/settings/ai" class="btn btn-primary btn-lg">Configure the assistant</a>
+  {{else}}
+  <p>An administrator needs to connect an OpenRouter API key before the assistant can be used. Ask an administrator to enable it under Settings.</p>
+  {{end}}
+</div>
+{{template "foot" .}}
+{{else}}
+
+<div class="assistant">
+  <aside class="assistant-threads">
+    <form method="post" action="/assistant/new">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <button type="submit" class="btn btn-primary thread-new">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+        New conversation
+      </button>
+    </form>
+    <div class="thread-list">
+      {{range .Data.Conversations}}
+      <a href="/assistant/{{.ID}}" class="thread {{if and $.Data.Active (eqi .ID $.Data.Active.ID)}}active{{end}}">
+        {{.Title}}
+        <span class="thread-time">{{ago .UpdatedAt}}</span>
+      </a>
+      {{else}}
+      <p class="subtle" style="padding:8px 11px;font-size:12px">No conversations yet.</p>
+      {{end}}
+    </div>
+  </aside>
+
+  <section class="chat" id="chat"
+           data-conversation="{{if .Data.Active}}{{.Data.Active.ID}}{{end}}"
+           data-csrf="{{.CSRFToken}}">
+    <div class="chat-head">
+      <span class="assistant-badge">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h14v9H8l-4 3.5V14H4z"/><path d="M8 9h6M8 11.5h4"/></svg></span>
+        HAProxy assistant
+      </span>
+      <span class="chat-model" title="Active model">{{.Data.Model}}</span>
+      {{if .Data.Active}}
+      <form method="post" action="/assistant/{{.Data.Active.ID}}/delete" class="inline-form"
+            data-confirm="Delete this conversation?">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button type="submit" class="btn btn-sm" title="Delete conversation">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.5 9h6l.5-9"/></svg>
+        </button>
+      </form>
+      {{end}}
+    </div>
+
+    <div class="chat-scroll" id="chat-scroll">
+      <div class="chat-stream" id="chat-stream">
+        {{if not .Data.Messages}}
+        <div class="chat-empty">
+          <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h14v9H8l-4 3.5V14H4z"/><path d="M8 9h6M8 11.5h4"/></svg></span>
+          <h2>Describe what you want, in plain language</h2>
+          <p>The assistant gathers context, builds the configuration step by step, validates it with HAProxy, and repairs anything that fails — then hands it to you to review and apply.</p>
+          <div class="suggestions" id="suggestions">
+            <div class="suggestion" data-prompt="Create an HTTPS site for www.example.com that load balances across two web servers 10.0.0.11:8080 and 10.0.0.12:8080, with health checks and forced HTTPS.">Create an HTTPS site load balancing two web servers, with health checks and forced HTTPS</div>
+            <div class="suggestion" data-prompt="Add an API backend for api.example.com with servers 10.0.1.21:9090 and 10.0.1.22:9090 using leastconn, and route api.example.com to it.">Add an API backend and route a hostname to it</div>
+            <div class="suggestion" data-prompt="Rate limit the public frontend to 100 requests per 10 seconds per client IP and add a branded 429 error page.">Rate limit a frontend and add a branded error page</div>
+          </div>
+        </div>
+        {{else}}
+          {{range .Data.Messages}}
+            {{if eqi .Role "user"}}
+            <div class="msg user">
+              <div class="msg-avatar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5.5" r="2.6"/><path d="M3.2 13c.6-2 2.4-3 4.8-3s4.2 1 4.8 3"/></svg></div>
+              <div class="msg-body"><div class="bubble">{{.Content}}</div></div>
+            </div>
+            {{else}}
+            <div class="msg assistant">
+              <div class="msg-avatar"><svg viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5h10v6.5H6l-3 2.2V10H3z"/></svg></div>
+              <div class="msg-body">
+                {{if .StepList}}
+                <details class="steps">
+                  <summary class="steps-head">
+                    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M2 8h12M2 12h8"/></svg>
+                    {{len .StepList}} step{{if ne (len .StepList) 1}}s{{end}}
+                    <svg class="chev" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                  </summary>
+                  <div class="steps-body">
+                    {{range .StepList}}
+                    {{template "step" .}}
+                    {{end}}
+                  </div>
+                </details>
+                {{end}}
+                <div class="bubble">{{mdInline .Content}}</div>
+                {{if .Changed}}
+                <div class="outcome-actions">
+                  <a href="/config" class="btn btn-sm btn-primary">Review &amp; apply</a>
+                  {{if not .Valid}}<span class="badge bad">needs attention</span>{{end}}
+                </div>
+                {{end}}
+              </div>
+            </div>
+            {{end}}
+          {{end}}
+        {{end}}
+      </div>
+    </div>
+
+    <div class="composer">
+      {{if .Data.Active}}
+      <form id="composer-form">
+        <textarea id="composer-input" placeholder="Ask the assistant to build or change your configuration…" rows="1" autofocus></textarea>
+        <button type="submit" class="btn btn-primary send" title="Send" aria-label="Send">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 17 3l-4 14-3-6-6-1z"/></svg>
+        </button>
+      </form>
+      <p class="composer-hint">The assistant stages changes only. Nothing goes live until you open <strong>Review &amp; apply</strong> and press Save &amp; Apply.</p>
+      {{else}}
+      <form method="post" action="/assistant/new">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Start a conversation</button>
+      </form>
+      {{end}}
+    </div>
+  </section>
+</div>
+
+<script src="/static/assistant.js"></script>
+{{template "foot" .}}
+{{end}}
+
+{{define "step"}}
+<div class="step {{if .OK}}ok{{else}}bad{{end}}">
+  <span class="step-icon">
+    {{if .OK}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="m5.5 8 1.8 1.8L11 6"/></svg>
+    {{else}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v3.5M8 11h.01"/></svg>{{end}}
+  </span>
+  <div class="step-main">
+    <span class="step-kind">{{.Kind}}</span>{{.Summary}}
+    {{if .Detail}}<div class="step-detail">{{.Detail}}</div>{{end}}
+  </div>
+</div>
+{{end}}
