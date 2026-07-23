@@ -1,0 +1,99 @@
+DeviceAtlas Device Detection
+----------------------------
+
+In order to add DeviceAtlas Device Detection support, you would need to download
+the API source code from https://deviceatlas.com/deviceatlas-haproxy-module.
+Once extracted, two modes are supported :
+
+1/ Build HAProxy and DeviceAtlas in one command
+
+    $ make TARGET=<target> USE_DEVICEATLAS=1 DEVICEATLAS_SRC=<path to the API root folder>
+
+Optionally DEVICEATLAS_INC and DEVICEATLAS_LIB may be set to override the path
+to the include files and libraries respectively if they're not in the source
+directory. Also, in the case the api cache support is not needed and/or a C++ toolchain
+ could not be used, DEVICEATLAS_NOCACHE is available.
+
+    $ make TARGET=<target> USE_DEVICEATLAS=1 DEVICEATLAS_SRC=<path to the API root folder> DEVICEATLAS_NOCACHE=1
+
+For HAProxy developers who need to verify that their changes didn't accidentally
+break the DeviceAtlas code, it is possible to build a dummy library provided in
+the addons/deviceatlas/dummy directory and to use it as an alternative for the
+full library. This will not provide the full functionalities, it will just allow
+haproxy to start with a deviceatlas configuration, which generally is enough to
+validate API changes :
+
+    $ make TARGET=<target> USE_DEVICEATLAS=1 DEVICEATLAS_SRC=$PWD/addons/deviceatlas/dummy
+
+2/ Build and install DeviceAtlas according to https://docs.deviceatlas.com/apis/enterprise/c/<release version>/README.html
+
+For example :
+In the deviceatlas library folder :
+    $ cmake .
+    $ make
+    $ sudo make install
+
+In the HAProxy folder :
+    $ make TARGET=<target> USE_DEVICEATLAS=1
+
+Note that if the -DCMAKE_INSTALL_PREFIX cmake option had been used, it is necessary to set as well DEVICEATLAS_LIB and
+DEVICEATLAS_INC as follow :
+    $ make TARGET=<target> USE_DEVICEATLAS=1 DEVICEATLAS_INC=<CMAKE_INSTALL_PREFIX value>/include DEVICEATLAS_LIB=<CMAKE_INSTALL_PREFIX value>/lib
+
+For example :
+    $ cmake -DCMAKE_INSTALL_PREFIX=/opt/local
+    $ make
+    $ sudo make install
+    $ make TARGET=<target> USE_DEVICEATLAS=1 DEVICEATLAS_INC=/opt/local/include DEVICEATLAS_LIB=/opt/local/lib
+
+Note that DEVICEATLAS_SRC is omitted in this case.
+
+These are supported DeviceAtlas directives (see doc/configuration.txt) :
+  - deviceatlas-json-file <path to the DeviceAtlas JSON data file>.
+  - deviceatlas-log-level <number> (0 to 3, level of information returned by
+    the API, 0 by default).
+  - deviceatlas-property-separator <character> (character used to separate the
+    properties produced by the API, | by default).
+  - deviceatlas-cache-size <number> (number of cache entries, 0 by default).
+
+Sample configuration :
+
+    global
+	deviceatlas-json-file <path to json file>
+
+    ...
+    frontend
+	bind *:8881
+	default_backend servers
+
+There are two distinct methods available, one which leverages all HTTP headers
+and one which uses only a single HTTP header for the detection. The former
+method is highly recommended and more accurate. There are several possible use
+cases.
+
+# To transmit the DeviceAtlas data downstream to the target application
+
+All HTTP headers via the sample / fetch
+
+    http-request set-header X-DeviceAtlas-Data %[da-csv-fetch(primaryHardwareType,osName,osVersion,browserName,browserVersion,browserRenderingEngine)]
+
+Single HTTP header (e.g. User-Agent) via the converter
+
+    http-request set-header X-DeviceAtlas-Data %[req.fhdr(User-Agent),da-csv-conv(primaryHardwareType,osName,osVersion,browserName,browserVersion,browserRenderingEngine)]
+
+# Mobile content switching with ACL
+
+All HTTP headers
+
+    acl is_mobile da-csv-fetch(mobileDevice) 1
+
+Single HTTP header
+
+    acl device_type_tablet req.fhdr(User-Agent),da-csv-conv(primaryHardwareType) "Tablet"
+
+Note that the JSON download scheduler is now part of the API's package, it is recommended
+to read its documentation. Note it needs to be started before HAProxy.
+
+
+Please find more information about DeviceAtlas and the detection methods at
+https://deviceatlas.com/resources .
