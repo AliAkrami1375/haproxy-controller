@@ -1,0 +1,47 @@
+# HAProxy, managed by HAProxy Controller.
+#
+# The controller writes /etc/haproxy/haproxy.cfg and calls
+# "systemctl reload haproxy-managed" after every successful apply.
+#
+# Powered by Ebdaa.me - https://ebdaa.me
+
+[Unit]
+Description=HAProxy Load Balancer (managed by HAProxy Controller)
+Documentation=https://ebdaa.me
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment="CONFIG=/etc/haproxy/haproxy.cfg" "PIDFILE=/run/haproxy/haproxy.pid"
+ExecStartPre=/usr/local/sbin/haproxy -f $CONFIG -c -q
+ExecStart=/usr/local/sbin/haproxy -Ws -f $CONFIG -p $PIDFILE
+# SIGUSR2 asks the master process to reload without dropping connections.
+ExecReload=/usr/local/sbin/haproxy -f $CONFIG -c -q
+ExecReload=/bin/kill -USR2 $MAINPID
+KillMode=mixed
+Restart=always
+RestartSec=2
+SuccessExitStatus=143
+Type=notify
+
+RuntimeDirectory=haproxy
+RuntimeDirectoryMode=0755
+
+# Hardening. HAProxy needs CAP_NET_BIND_SERVICE for ports below 1024.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID
+NoNewPrivileges=false
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+LockPersonality=true
+ReadWritePaths=/run/haproxy /var/lib/haproxy
+
+[Install]
+WantedBy=multi-user.target

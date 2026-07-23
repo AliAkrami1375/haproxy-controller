@@ -1,0 +1,8 @@
+# Optional: allow a non-root controller account to manage the HAProxy unit.
+# Install to /etc/sudoers.d/haproxy-controller with mode 0440, then set the
+# reload/restart/status commands under Settings to use sudo.
+#
+# Powered by Ebdaa.me - https://ebdaa.me
+haproxyctl ALL=(root) NOPASSWD: /bin/systemctl reload haproxy-managed, \
+                                /bin/systemctl restart haproxy-managed, \
+                                /bin/systemctl is-active haproxy-managed

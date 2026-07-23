@@ -1,0 +1,41 @@
+# HAProxy Controller - web control panel for HAProxy.
+#
+# Powered by Ebdaa.me - https://ebdaa.me
+
+[Unit]
+Description=HAProxy Controller (web control panel)
+Documentation=https://ebdaa.me
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/haproxy-controller -config /etc/haproxy-controller/controller.json
+Restart=always
+RestartSec=3
+
+# The controller runs as root because it must write /etc/haproxy and drive
+# systemctl. Everything outside those paths is read-only to it.
+User=root
+Group=root
+
+StateDirectory=haproxy-controller
+StateDirectoryMode=0750
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/etc/haproxy /etc/haproxy-controller /var/lib/haproxy-controller /run/haproxy
+
+# The panel is an admin surface; keep its resource use modest.
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target
